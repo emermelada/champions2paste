@@ -1,0 +1,43 @@
+{
+  "level": 50,
+  "team": {
+    "team_id": "P302HFTLGP",
+    "pokemon": [
+      {"species": "Salamence", "gender": "F", "ability": "Intimidate", "item": "Salamencite",
+       "moves": ["Draco Meteor", "Hyper Voice", "Tailwind", "Protect"],
+       "sp":    {"hp": 9,  "atk": 0,  "defense": 0,  "sp_atk": 25, "sp_def": 0,  "speed": 32},
+       "stats": {"hp": 179,"atk": 139,"defense": 100,"sp_atk": 155,"sp_def": 100,"speed": 167},
+       "boosted_stat": "speed", "hindered_stat": "atk"},
+
+      {"species": "Kingambit", "gender": "M", "ability": "Defiant", "item": "Chople Berry",
+       "moves": ["Kowtow Cleave", "Iron Head", "Sucker Punch", "Low Kick"],
+       "sp":    {"hp": 32, "atk": 19, "defense": 2,  "sp_atk": 0,  "sp_def": 4,  "speed": 9},
+       "stats": {"hp": 207,"atk": 191,"defense": 142,"sp_atk": 72, "sp_def": 109,"speed": 79},
+       "boosted_stat": "atk", "hindered_stat": "sp_atk"},
+
+      {"species": "Sneasler", "gender": "M", "ability": "Poison Touch", "item": "Focus Sash",
+       "moves": ["Close Combat", "Dire Claw", "Fake Out", "Protect"],
+       "sp":    {"hp": 2,  "atk": 32, "defense": 0,  "sp_atk": 0,  "sp_def": 0,  "speed": 32},
+       "stats": {"hp": 157,"atk": 182,"defense": 80, "sp_atk": 54, "sp_def": 100,"speed": 189},
+       "boosted_stat": "speed", "hindered_stat": "sp_atk"},
+
+      {"species": "Basculegion", "gender": "M", "ability": "Adaptability", "item": "Life Orb",
+       "moves": ["Wave Crash", "Last Respects", "Aqua Jet", "Protect"],
+       "sp":    {"hp": 0,  "atk": 31, "defense": 14, "sp_atk": 0,  "sp_def": 0,  "speed": 21},
+       "stats": {"hp": 195,"atk": 179,"defense": 99, "sp_atk": 90, "sp_def": 95, "speed": 119},
+       "boosted_stat": "atk", "hindered_stat": "sp_atk"},
+
+      {"species": "Sylveon", "gender": "M", "ability": "Pixilate", "item": "Fairy Feather",
+       "moves": ["Hyper Voice", "Yawn", "Quick Attack", "Protect"],
+       "sp":    {"hp": 26, "atk": 0,  "defense": 16, "sp_atk": 14, "sp_def": 0,  "speed": 10},
+       "stats": {"hp": 196,"atk": 76, "defense": 101,"sp_atk": 158,"sp_def": 150,"speed": 90},
+       "boosted_stat": "sp_atk", "hindered_stat": "atk"},
+
+      {"species": "Rillaboom", "gender": "M", "ability": "Grassy Surge", "item": "Miracle Seed",
+       "moves": ["Grassy Glide", "High Horsepower", "U-turn", "Fake Out"],
+       "sp":    {"hp": 32, "atk": 15, "defense": 0,  "sp_atk": 0,  "sp_def": 17, "speed": 2},
+       "stats": {"hp": 207,"atk": 176,"defense": 110,"sp_atk": 72, "sp_def": 107,"speed": 107},
+       "boosted_stat": "atk", "hindered_stat": "sp_atk"}
+    ]
+  }
+}
