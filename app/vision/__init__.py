@@ -1,4 +1,4 @@
-"""Registro de motores de vision, seleccionable por la variable VISION_BACKEND."""
+"""Registry of vision engines, selected through the VISION_BACKEND variable."""
 
 from __future__ import annotations
 
@@ -24,4 +24,4 @@ def get_backend(name: str | None = None) -> VisionBackend:
         from .claude import ClaudeBackend
         return ClaudeBackend()
 
-    raise ValueError(f"Motor desconocido: {name!r}. Opciones: {', '.join(BACKENDS)}")
+    raise ValueError(f"Unknown engine: {name!r}. Options: {', '.join(BACKENDS)}")

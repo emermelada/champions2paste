@@ -7,17 +7,17 @@ services:
     ports:
       - "8321:8000"
     environment:
-      # --- Motor de vision: "ocr" | "ollama" | "claude" --------------------
-      # "ocr" es el recomendado y el que viene por defecto: corre entero en el
-      # NAS, sin GPU, sin internet y sin coste.
+      # --- Vision engine: "ocr" | "ollama" | "claude" -----------------------
+      # "ocr" is the recommended default: it runs entirely on the host, with no
+      # GPU, no internet and no cost.
       VISION_BACKEND: "${VISION_BACKEND:-ocr}"
 
-      # Solo con VISION_BACKEND=ollama (la inferencia vive en otra maquina;
-      # localhost aqui seria el propio contenedor).
+      # Only with VISION_BACKEND=ollama (inference lives on another machine;
+      # localhost in here would mean the container itself).
       OLLAMA_HOST: "${OLLAMA_HOST:-http://192.168.1.50:11434}"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-qwen3-vl:8b}"
       OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-600}"
 
-      # Solo con VISION_BACKEND=claude.
+      # Only with VISION_BACKEND=claude.
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-claude-opus-5}"

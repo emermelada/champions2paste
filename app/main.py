@@ -1,4 +1,4 @@
-"""API HTTP: capturas de Pokemon Champions -> paste de Pokemon Showdown."""
+"""HTTP API: Pokemon Champions screenshots -> Pokemon Showdown paste."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ app = FastAPI(title="champions2paste", docs_url="/api/docs")
 class RenderRequest(BaseModel):
     team: RawTeam
     level: int | None = Field(default=50, ge=1, le=100)
-    legacy: bool = Field(default=False, description="Emitir EVs en la escala clasica (1 SP = 8 EVs)")
+    legacy: bool = Field(default=False, description="Emit EVs on the classic scale (1 SP = 8 EVs)")
 
 
 @app.get("/api/health")
@@ -34,7 +34,7 @@ def health() -> dict:
 
 @app.get("/api/vocab")
 def vocab() -> dict:
-    """Alimenta el autocompletado del editor con los nombres canonicos."""
+    """Feeds the editor's autocomplete with the canonical names."""
     return {
         "species": dex.species.names,
         "moves": dex.moves.names,
@@ -49,22 +49,22 @@ def vocab() -> dict:
 
 async def _read_images(files: list[UploadFile]) -> list[tuple[str, bytes]]:
     if not files:
-        raise HTTPException(400, "Sube al menos una captura")
+        raise HTTPException(400, "Upload at least one screenshot")
     if len(files) > 2:
-        raise HTTPException(400, "Como maximo dos capturas: equipo y entrenamiento")
+        raise HTTPException(400, "Two screenshots at most: Moves & More and Stats")
 
     images: list[tuple[str, bytes]] = []
     for upload in files:
         if upload.content_type not in ALLOWED_TYPES:
             raise HTTPException(
-                400, f"Formato no soportado: {upload.content_type}. Usa PNG, JPEG o WebP."
+                400, f"Unsupported format: {upload.content_type}. Use PNG, JPEG or WebP."
             )
         data = await upload.read()
         if not data:
-            raise HTTPException(400, f"{upload.filename} esta vacio")
+            raise HTTPException(400, f"{upload.filename} is empty")
         if len(data) > MAX_IMAGE_BYTES:
             raise HTTPException(
-                413, f"{upload.filename} supera el limite de {MAX_IMAGE_BYTES // 1024 // 1024} MB"
+                413, f"{upload.filename} exceeds the {MAX_IMAGE_BYTES // 1024 // 1024} MB limit"
             )
         images.append((upload.content_type, data))
     return images
@@ -77,14 +77,14 @@ async def extract(files: list[UploadFile] = File(...), level: int = 50,
 
     try:
         team = get_backend().extract(images)
-    except ValueError as exc:                      # motor mal configurado
+    except ValueError as exc:                      # misconfigured engine
         raise HTTPException(500, str(exc)) from exc
-    except Exception as exc:                       # fallo del modelo o de la red
-        raise HTTPException(502, f"El motor de vision fallo: {exc}") from exc
+    except Exception as exc:                       # engine or network failure
+        raise HTTPException(502, f"The vision engine failed: {exc}") from exc
 
     if not team.pokemon:
         raise HTTPException(
-            422, "No se reconocio ningun Pokemon en las capturas. Prueba con una imagen mas nitida."
+            422, "No Pokemon were recognised in the screenshots. Try a sharper image."
         )
 
     mons = paste.normalize_team(team, legacy)
@@ -93,7 +93,7 @@ async def extract(files: list[UploadFile] = File(...), level: int = 50,
 
 @app.post("/api/render")
 def render(request: RenderRequest) -> dict:
-    """Re-normaliza y re-renderiza tras editar a mano, sin volver a llamar al modelo."""
+    """Re-normalise and re-render after a manual edit, without calling the engine."""
     mons = paste.normalize_team(request.team, request.legacy)
     return {"mons": mons, "paste": paste.render_team(mons, request.level)}
 

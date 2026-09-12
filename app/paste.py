@@ -1,4 +1,4 @@
-"""Normalizacion de un equipo leido y renderizado al formato paste de Showdown."""
+"""Normalising a read team and rendering it as a Showdown paste."""
 
 from __future__ import annotations
 
@@ -17,32 +17,32 @@ def _stats(raw: RawStats | None) -> dict[str, int]:
 
 
 def _check_sp(sp: dict[str, int], warnings: list[str]) -> None:
-    """Champions reparte siempre 66 SP, con 32 como tope por estadistica.
+    """Champions always spends 66 SP, with 32 as the per-stat cap.
 
-    Es un checksum gratuito: si la lectura no cuadra, algun numero se ha leido mal.
+    A free checksum: if the numbers do not add up, something was misread.
     """
     if not sp:
         return
     for key, value in sp.items():
         if value > champions.MAX_SP_PER_STAT:
             warnings.append(
-                f"{dex.STAT_LABELS[key]} tiene {value} SP, por encima del maximo de "
-                f"{champions.MAX_SP_PER_STAT}: seguramente esta mal leido"
+                f"{dex.STAT_LABELS[key]} has {value} SP, above the maximum of "
+                f"{champions.MAX_SP_PER_STAT}: it was most likely misread"
             )
     total = sum(sp.values())
     if total != champions.MAX_SP_TOTAL:
         warnings.append(
-            f"Los SP suman {total} y en Champions siempre suman "
-            f"{champions.MAX_SP_TOTAL}: revisa los numeros pequenos"
+            f"SP add up to {total}, and in Champions they always total "
+            f"{champions.MAX_SP_TOTAL}: check the small numbers"
         )
 
 
 def _check_stats(species: str | None, evs: dict[str, int], shown: dict[str, int],
                  boosted: str | None, hindered: str | None, warnings: list[str]) -> None:
-    """Recalcula las estadisticas y las contrasta con las que muestra la captura.
+    """Recompute the stats and check them against the ones on screen.
 
-    Cierra el circulo: si los SP, la especie o las flechas se leyeron mal, el
-    valor recalculado deja de cuadrar con el numero grande de la pantalla.
+    This closes the loop: if the SP, the species or the arrows were misread, the
+    recomputed value stops matching the large number in the screenshot.
     """
     if not species or not shown:
         return
@@ -52,20 +52,20 @@ def _check_stats(species: str | None, evs: dict[str, int], shown: dict[str, int]
     for key, value in shown.items():
         if expected[key] != value:
             warnings.append(
-                f"{dex.STAT_LABELS[key]}: la captura muestra {value} pero con estos SP "
-                f"deberia ser {expected[key]}"
+                f"{dex.STAT_LABELS[key]}: the screenshot shows {value} but with these SP "
+                f"it should be {expected[key]}"
             )
 
 
 def normalize_mon(raw: RawMon, legacy: bool = False) -> dict:
-    """Ancla cada campo leido al vocabulario de Showdown y recoge las dudas."""
+    """Anchor every read field to Showdown's vocabulary and collect the doubts."""
     resolved = {
         "species": _field(dex.species.match(raw.species)),
         "item": _field(dex.items.match(raw.item)),
         "ability": _field(dex.abilities.match(raw.ability)),
         "tera_type": _field(dex.tera.match(raw.tera_type)),
-        # Los huecos vacios se conservan para que los indices sigan cuadrando con
-        # los campos del editor; se descartan al renderizar, no aqui.
+        # Empty slots are kept so the indices stay aligned with the editor's
+        # fields; they are dropped at render time, not here.
         "moves": [_field(dex.moves.match(m)) for m in raw.moves],
         "nickname": raw.nickname,
         "gender": raw.gender if raw.gender in {"M", "F"} else None,
@@ -78,26 +78,26 @@ def normalize_mon(raw: RawMon, legacy: bool = False) -> dict:
     species = resolved["species"]["value"]
 
     if species is None:
-        warnings.append(f"Especie no reconocida: {raw.species!r}")
+        warnings.append(f"Species not recognised: {raw.species!r}")
     elif not resolved["species"]["exact"]:
-        warnings.append(f"Especie corregida: {raw.species!r} -> {species}")
+        warnings.append(f"Species corrected: {raw.species!r} -> {species}")
 
     for label, key in (
-        ("Objeto", "item"), ("Habilidad", "ability"), ("Tipo Tera", "tera_type"),
+        ("Item", "item"), ("Ability", "ability"), ("Tera type", "tera_type"),
     ):
         field = resolved[key]
         if field["raw"] and field["value"] is None:
-            warnings.append(f"{label} no reconocido: {field['raw']!r}")
+            warnings.append(f"{label} not recognised: {field['raw']!r}")
         elif field["value"] and not field["exact"]:
-            warnings.append(f"{label} corregido: {field['raw']!r} -> {field['value']}")
+            warnings.append(f"{label} corrected: {field['raw']!r} -> {field['value']}")
 
     for move in resolved["moves"]:
         if not move["raw"].strip():
             continue
         if move["value"] is None:
-            warnings.append(f"Movimiento no reconocido: {move['raw']!r}")
+            warnings.append(f"Move not recognised: {move['raw']!r}")
         elif not move["exact"]:
-            warnings.append(f"Movimiento corregido: {move['raw']!r} -> {move['value']}")
+            warnings.append(f"Move corrected: {move['raw']!r} -> {move['value']}")
 
     _check_sp(resolved["sp"], warnings)
 
@@ -105,16 +105,16 @@ def normalize_mon(raw: RawMon, legacy: bool = False) -> dict:
         resolved["boosted_stat"], resolved["hindered_stat"]
     )
 
-    # La verificacion siempre usa la escala clasica: es en la que opera la
-    # formula del juego, independientemente de como se emita el paste.
+    # Verification always uses the classic scale: that is what the game's formula
+    # operates on, regardless of how the paste is emitted.
     _check_stats(species, champions.sp_to_evs(resolved["sp"]), _stats(raw.stats),
                  resolved["boosted_stat"], resolved["hindered_stat"], warnings)
 
     evs = champions.paste_evs(resolved["sp"], legacy)
     if legacy and sum(evs.values()) > champions.MAX_EV_TOTAL:
         warnings.append(
-            f"En escala clasica el spread suma {sum(evs.values())} EVs, por encima de los "
-            f"{champions.MAX_EV_TOTAL} que admite un formato antiguo de Showdown"
+            f"On the classic scale this spread totals {sum(evs.values())} EVs, above the "
+            f"{champions.MAX_EV_TOTAL} an older Showdown format allows"
         )
 
     resolved["evs"] = evs
@@ -156,8 +156,8 @@ def render_mon(mon: dict, level: int | None = champions.LEVEL) -> str:
         lines.append(ev_line)
     if nature := mon.get("nature"):
         lines.append(f"{nature} Nature")
-    # Champions no tiene IVs: equivalen a 31, que es justo lo que Showdown asume
-    # cuando el paste no lleva linea de IVs. Por eso no se emite ninguna.
+    # Champions has no IVs: they are equivalent to 31, which is exactly what
+    # Showdown assumes when a paste carries no IVs line. So none is emitted.
 
     lines.extend(
         f"- {m['value'] or m['raw']}" for m in mon["moves"] if m["raw"].strip()

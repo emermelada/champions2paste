@@ -1,4 +1,4 @@
-"""Motor via la API de Claude. Funciona en cualquier hardware, incluido un NAS ARM."""
+"""Engine via the Claude API. Runs on any hardware, an ARM NAS included."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ class ClaudeBackend:
     name = "claude"
 
     def __init__(self) -> None:
-        # El cliente sin argumentos resuelve la credencial por su cuenta:
-        # ANTHROPIC_API_KEY, o el perfil OAuth de `ant auth login`.
+        # The zero-argument client resolves credentials on its own:
+        # ANTHROPIC_API_KEY, or the OAuth profile from `ant auth login`.
         self.client = anthropic.Anthropic()
         self.model = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5")
 
@@ -44,9 +44,9 @@ class ClaudeBackend:
         )
 
         if response.stop_reason == "refusal":
-            raise RuntimeError("La API rechazo la peticion (stop_reason=refusal)")
+            raise RuntimeError("The API declined the request (stop_reason=refusal)")
 
         if response.parsed_output is None:
-            raise RuntimeError("La API no devolvio un equipo utilizable")
+            raise RuntimeError("The API returned no usable team")
 
         return response.parsed_output

@@ -1,14 +1,14 @@
 # champions2paste
 
-Convierte capturas de pantalla de un equipo de **Pokémon Champions** en un
-**pokepaste** válido para **Pokémon Showdown**.
+Turns **Pokémon Champions** team screenshots into a valid **Pokémon Showdown**
+pokepaste.
 
-Subes una o dos capturas de la pantalla *"Replicate This Battle Team?"*, se leen
-por OCR, cada nombre se ancla contra el vocabulario real de Showdown, y sale el
-texto listo para pegar en el Teambuilder.
+Upload one or two screenshots of the *"Replicate This Battle Team?"* screen, they
+are read by OCR, every name is anchored against Showdown's real vocabulary, and
+out comes text ready to paste into the Teambuilder.
 
-Corre entero en un NAS modesto: **sin GPU, sin internet y sin coste**. No usa
-ningún modelo de lenguaje.
+It runs entirely on modest hardware: **no GPU, no internet, no cost**. There is
+no language model anywhere in the pipeline.
 
 ```
 Salamence (F) @ Salamencite          Kingambit (M) @ Chople Berry
@@ -24,269 +24,271 @@ Timid Nature                         Adamant Nature
 
 ---
 
-## Cómo se usa
+## Using it
 
-Las capturas entran de tres formas: **arrastrándolas**, **haciendo clic** para
-elegir fichero, o **pegándolas con Ctrl+V** desde el portapapeles. Cada hueco
-tiene una × para vaciarlo, y puedes arrastrar una imagen de un hueco al otro.
+Screenshots go in three ways: **drag them**, **click** to pick a file, or
+**paste with Ctrl+V** from the clipboard. Each slot has an × to empty it, and you
+can drag an image from one slot to the other.
 
-Hay dos pestañas en el juego que interesan:
+Two in-game tabs matter:
 
-- **Moves & More** — especies, géneros, habilidades, objetos y movimientos.
-- **Stats** — puntos invertidos (SP) y naturaleza.
+- **Moves & More** — species, genders, abilities, held items and moves.
+- **Stats** — points invested (SP) and nature.
 
-**El orden da igual y ninguna es obligatoria.** Cada captura se reconoce por la
-pestaña que tiene resaltada en verde, no por el hueco donde la pongas:
+**Order does not matter and neither tab is required.** Each screenshot is
+identified by the tab it has highlighted in green, not by the slot you drop it
+into:
 
-| Subes | Obtienes |
+| You upload | You get |
 |---|---|
-| Las dos | El paste completo |
-| Solo *Moves & More* | El equipo sin spreads |
-| Solo *Stats* | Especies, SP y naturalezas, sin movimientos |
+| Both | The complete paste |
+| Only *Moves & More* | The team without spreads |
+| Only *Stats* | Species, SP and natures, but no moves |
 
-Tras la conversión aparece un editor con todo lo leído. Los campos que el
-diccionario tuvo que corregir salen en **ámbar** y los que no reconoció en
-**rojo**, con el aviso escrito debajo. Corregir a mano no vuelve a llamar al OCR.
-
----
-
-## Por qué la entrada son capturas y no el código del juego
-
-El código replica que da Champions (`P302HFTLGP`) **no contiene el equipo**: es
-un identificador que se resuelve contra los servidores del juego.
-
-Diez caracteres alfanuméricos son unos 51 bits de información. Seis Pokémon con
-objeto, habilidad, naturaleza, cuatro movimientos y spread necesitan varios
-cientos. La información no está ahí, así que ninguna herramienta local puede
-descifrarlo — por muy buena que sea. De ahí que se parta de capturas.
+After converting, an editor appears with everything that was read. Fields the
+vocabulary had to correct show up in **amber** and unrecognised ones in **red**,
+with the warning spelled out underneath. Fixing something by hand does not call
+the OCR engine again.
 
 ---
 
-## El sistema de estadísticas de Champions
+## Why the input is screenshots and not the game's code
 
-Champions no usa EVs ni IVs clásicos, y la herramienta trabaja en su escala:
+The replica code Champions gives you (`P302HFTLGP`) **does not contain the
+team**: it is an identifier resolved against the game's servers.
 
-- Cada estadística admite de **0 a 32 SP**, y el total de cada Pokémon es
-  **siempre 66**.
-- **No hay IVs**: equivalen a 31. Por eso el paste no emite línea `IVs:`, que es
-  justo lo que Showdown asume cuando falta.
-- **La naturaleza no se escribe en ninguna parte**: se deduce de las flechas
-  rosas hacia arriba (potenciada) y azules hacia abajo (reducida).
-- Los combates son a **nivel 50**.
-
-El paste lleva los SP **en crudo**, que es lo que esperan los formatos de
-Champions en Showdown. El interruptor *EVs clásicos (×8)* los convierte a la
-escala antigua (1 SP = 8 EVs, tope 252) para calculadoras que aún la usan; en ese
-modo avisa de que el spread supera los 508 EVs, porque 66 SP equivalen a 528.
-
-### Megaevolución
-
-Champions permite megaevolución, y la herramienta trata las piedras como
-cualquier otro objeto, conservando la **habilidad de la forma base**
-(`Intimidate`, no `Aerilate`), que es lo que Showdown espera.
+Ten alphanumeric characters are about 51 bits of information. Six Pokémon with
+items, abilities, natures, four moves each and spreads need several hundred. The
+information simply is not in there, so no local tool can decode it — however good
+it is. Hence starting from screenshots.
 
 ---
 
-## Cómo funciona
+## The Champions stat system
 
-No hay modelo de lenguaje ni prompt: el resultado es determinista y no puede
-inventarse un dato. La pantalla del juego siempre se dibuja igual, así que cada
-dato se busca donde está.
+Champions does not use classic EVs or IVs, and this tool works on its scale:
 
-1. **Las seis tarjetas se localizan por color** (moradas sobre fondo amarillo) y
-   se ordenan como las numera el juego. La pestaña activa se detecta por su
-   resaltado verde, de ahí que el orden de subida no importe.
+- Each stat takes **0 to 32 SP**, and every Pokémon's total is **always 66**.
+- **There are no IVs**: they are equivalent to 31. That is why the paste emits no
+  `IVs:` line, which is exactly what Showdown assumes when one is absent.
+- **The nature is never written anywhere**: it is derived from the pink arrows
+  pointing up (boosted) and the blue ones pointing down (hindered).
+- Battles are at **level 50**.
 
-2. **El texto** (especie, habilidad, objeto, movimientos) se lee en dos pasadas:
-   una detección sobre la imagen completa acota dónde está cada texto, y luego el
-   reconocedor lee esos recortes ajustados en un solo lote. Por separado ninguna
-   de las dos sirve: el detector parte los nombres de dos palabras y el
-   reconocedor se degrada si el recorte lleva mucho fondo vacío.
+The paste carries **raw SP**, which is what Champions formats on Showdown expect.
+The *Classic EVs (×8)* toggle converts them to the old scale (1 SP = 8 EVs,
+capped at 252) for calculators that still use it; in that mode it warns that the
+spread exceeds 508 EVs, because 66 SP is equivalent to 528.
 
-3. **Los números se autocalibran con la barra** de cada estadística, que se aísla
-   por color. El número grande queda a su izquierda y el pequeño a su derecha,
-   siempre a la misma distancia medida en anchos de barra. Esto evita depender de
-   posiciones fijas: un par de píxeles de diferencia al detectar una tarjeta
-   bastaban para cortar el último dígito.
+### Mega evolution
 
-4. **El género y la naturaleza no usan OCR**: son un recuento de píxeles. El
-   símbolo de género por su color, y las flechas en la banda del nombre de cada
-   estadística.
+Champions allows mega evolution. The tool treats mega stones like any other item
+and keeps the **base form's ability** (`Intimidate`, not `Aerilate`), which is
+what Showdown expects.
 
-### Cuatro señales que se corrigen entre sí
+---
 
-Un OCR se equivoca. Lo que hace fiable el resultado es que cada dato se contrasta
-con algo independiente:
+## How it works
 
-- **El diccionario cerrado de Showdown** corrige el texto. El vocabulario real
-  (1416 especies, 951 movimientos, 583 objetos, 321 habilidades) se hornea en la
-  imagen desde `play.pokemonshowdown.com`, y cada cadena leída se ancla al nombre
-  canónico más cercano con un umbral que escala con la longitud de la palabra:
-  `'Grsy Surge'` → `Grassy Surge`, `'Chople Bery'` → `Chople Berry`.
+There is no language model and no prompt: the result is deterministic and cannot
+invent a value. The game screen is always drawn the same way, so each piece of
+data is looked for where it actually is.
 
-- **La longitud de la barra** contrasta cada número de SP. Su error medio es de
-  0.06 puntos y nunca pasa de 2, así que cuando el número leído se aleja más de
-  eso, el OCR ha perdido un dígito (un `17` leído como `7`) y manda la barra.
+1. **The six cards are located by colour** (purple on a yellow background) and
+   ordered the way the game numbers them. The active tab is detected by its green
+   highlight, which is why upload order does not matter.
 
-- **El checksum de los 66 SP** delata cualquier número que siga mal.
+2. **Text** (species, ability, item, moves) is read in two passes: one detection
+   over the whole image narrows down where each piece of text sits, then the
+   recogniser reads those tight crops in a single batch. Neither half works
+   alone: the detector splits two-word names, and the recogniser degrades when
+   the crop carries a lot of empty background.
 
-- **El recálculo de las estadísticas** cierra el círculo: con las estadísticas
-  base, los SP, la naturaleza, nivel 50 e IVs 31, el valor final es determinista.
-  Si no cuadra con el número grande de la pantalla, algo se leyó mal.
+3. **Numbers self-calibrate against the bar** on each stat row, which is isolated
+   by colour. The large number sits to its left and the small one to its right,
+   always the same distance away measured in bar widths. This avoids depending on
+   fixed positions: a couple of pixels of difference when detecting a card was
+   enough to cut off the last digit.
 
-Nada se corrige a espaldas del usuario: toda corrección aparece como aviso.
+4. **Gender and nature use no OCR at all**: they are pixel counts. The gender
+   symbol by its colour, and the arrows in the band holding each stat's name.
 
-### Precisión medida
+### Four signals that correct each other
 
-Sobre las dos capturas reales del fixture, comparando los 96 campos (especie,
-género, habilidad, objeto, 4 movimientos, 6 SP y las 2 flechas de cada Pokémon):
+OCR makes mistakes. What makes the result trustworthy is that every value is
+checked against something independent:
+
+- **Showdown's closed vocabulary** fixes the text. The real dictionary (1416
+  species, 951 moves, 583 items, 321 abilities) is baked into the image from
+  `play.pokemonshowdown.com`, and every string read is anchored to the nearest
+  canonical name with a threshold that scales with word length: `'Grsy Surge'` →
+  `Grassy Surge`, `'Chople Bery'` → `Chople Berry`.
+
+- **Bar length** cross-checks every SP number. Its mean error is 0.06 points and
+  it never exceeds 2, so when the number that was read strays further than that,
+  OCR has dropped a digit (a `17` read as `7`) and the bar wins.
+
+- **The 66 SP checksum** gives away any number still wrong after that.
+
+- **Recomputing the stats** closes the loop: given base stats, SP, nature, level
+  50 and IVs of 31, the final value is deterministic. If it does not match the
+  large number on screen, something was misread.
+
+Nothing is corrected behind the user's back: every correction surfaces as a
+warning.
+
+### Measured accuracy
+
+Against the two real screenshots in the fixture, comparing all 96 fields
+(species, gender, ability, item, 4 moves, 6 SP and the 2 arrows per Pokémon):
 
 ```
-96/96 campos correctos (100.0%)
+96/96 fields correct (100.0%)
 ```
 
-En unos 3 segundos de extremo a extremo en una CPU de escritorio.
+In roughly 3 seconds end to end on a desktop CPU.
 
-La conversión de escala está verificada aparte: los **36 valores** de estadística
-que muestran las seis tarjetas se reproducen exactamente con la fórmula del
-juego (1 SP = 8 EVs, IVs 31, nivel 50, multiplicador de naturaleza).
+The scale conversion is verified separately: the **36 stat values** shown across
+the six cards are reproduced exactly by the game's formula (1 SP = 8 EVs, IVs 31,
+level 50, nature multiplier).
 
 ---
 
-## Despliegue
+## Deployment
 
 ```bash
 docker compose up -d --build
 ```
 
-La web queda en `http://<ip>:8321`. No hay nada que configurar: el motor `ocr`
-viene por defecto y corre dentro del contenedor.
+The web UI lands on `http://<host>:8321`. Nothing to configure: the `ocr` engine
+is the default and runs inside the container.
 
-Notas comprobadas construyendo y ejecutando la imagen:
+Notes verified by building and running the image:
 
-- **El build necesita internet una sola vez**: `scripts/build_dex.py` descarga
-  los nombres canónicos de Showdown y los hornea en la imagen. Después el
-  contenedor funciona aislado.
-- **La imagen pesa ~740 MB** (onnxruntime, opencv y numpy). Es disco, no memoria.
-- **Todas las dependencias tienen rueda `manylinux aarch64`**, así que en un NAS
-  ARM se instalan sin compilar. Los modelos ONNX (13 MB) viajan dentro del
-  paquete de Python: no se descarga nada al arrancar.
-- **Con `docker-compose` v1** (el binario antiguo con guion), reconstruir sobre
-  un contenedor existente da `ERROR: 'ContainerConfig'`. Es un fallo conocido de
-  esa versión contra Docker moderno: `docker-compose down` antes de levantar.
+- **The build needs internet exactly once**: `scripts/build_dex.py` downloads
+  Showdown's canonical names and bakes them into the image. After that the
+  container works offline.
+- **The image weighs ~740 MB** (onnxruntime, opencv, numpy). That is disk, not
+  memory.
+- **Every dependency has a `manylinux aarch64` wheel**, so on an ARM NAS they
+  install without compiling. The ONNX models (13 MB) ship inside the Python
+  package: nothing is downloaded at startup.
+- **With `docker-compose` v1** (the old hyphenated binary), rebuilding over an
+  existing container fails with `ERROR: 'ContainerConfig'`. That is a known bug in
+  that version against modern Docker: run `docker-compose down` first.
 
-### En un Synology (GUI, sin SSH)
+### On a Synology (GUI, no SSH)
 
-1. **File Station** → sube el proyecto a la carpeta `docker` y descomprímelo.
-2. **Container Manager** → *Proyecto* → *Crear*, apuntando a esa carpeta.
-   Detecta el `docker-compose.yml` solo.
-3. Deja **sin marcar** *"Set up web portal via Web Station"*: estorba si vas a
-   publicar por proxy inverso o túnel.
+1. **File Station** → upload the project to the `docker` shared folder and
+   extract it.
+2. **Container Manager** → *Project* → *Create*, pointing at that folder. It
+   picks up `docker-compose.yml` on its own.
+3. Leave *"Set up web portal via Web Station"* **unchecked**: it gets in the way
+   if you are going to publish through a reverse proxy or a tunnel.
 
-En una CPU ARM el build puede tardar 10-20 minutos. No compila nada, pero
-descomprimir las ruedas en ese hardware es lento.
+On an ARM CPU the build can take 10-20 minutes. Nothing is compiled, but
+unpacking the wheels on that hardware is slow.
 
-### Publicarlo con un dominio propio
+### Publishing it on your own domain
 
-Con **Cloudflare Tunnel** no hace falta abrir puertos ni exponer la IP de casa, y
-el certificado lo pone Cloudflare. Un túnel sirve tantos hostnames como quieras,
-así que si ya tienes uno, basta con añadirle una ruta:
+With **Cloudflare Tunnel** there are no ports to open and no home IP to expose,
+and Cloudflare provides the certificate. One tunnel serves as many hostnames as
+you like, so if you already have one, just add a route to it:
 
-| Campo | Valor |
+| Field | Value |
 |---|---|
 | Subdomain | `champions2paste` |
 | Type | `HTTP` |
-| URL | `localhost:8321` *(si cloudflared usa `network_mode: host`)* |
+| URL | `localhost:8321` *(if cloudflared uses `network_mode: host`)* |
 
-El frontend usa solo rutas relativas, así que funciona detrás de un proxy sin
-tocar nada.
+The frontend only uses relative paths, so it works behind a proxy untouched.
 
-Dos avisos: si el dominio es un **`.dev`**, los navegadores fuerzan HTTPS por
-HSTS precargado y no hay forma de servirlo por HTTP plano. Y el plan gratuito de
-Cloudflare **corta las peticiones a los 100 segundos** (error 524), lo que
-importa si el OCR en tu hardware se acerca a ese tiempo.
+Two warnings: if the domain is a **`.dev`**, browsers force HTTPS through
+preloaded HSTS and there is no way to serve it over plain HTTP. And Cloudflare's
+free plan **cuts requests off at 100 seconds** (error 524), which matters if OCR
+on your hardware gets close to that.
 
 ---
 
-## Desarrollo local
+## Local development
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python scripts/build_dex.py          # cachea data/dex.json
+.venv/bin/python scripts/build_dex.py          # caches data/dex.json
 .venv/bin/uvicorn app.main:app --reload --port 8321
 ```
 
-## Pruebas
+## Tests
 
 ```bash
-.venv/bin/python tests/test_pipeline.py    # normalización y renderizado
-.venv/bin/python tests/test_ocr.py         # precisión del OCR, campo a campo
-node tests/test_clipboard.js               # pegado y arrastre entre huecos
+.venv/bin/python tests/test_pipeline.py    # normalisation and rendering
+.venv/bin/python tests/test_ocr.py         # OCR accuracy, field by field
+node tests/test_clipboard.js               # pasting and slot swapping
 ```
 
-`test_ocr.py` es el que importa al tocar el motor: compara los 96 campos contra
-la transcripción real del fixture, así que cualquier regresión salta ahí.
-`test_clipboard.js` extrae las funciones directamente de `index.html` para no
-quedarse desincronizado con la interfaz.
+`test_ocr.py` is the one that matters when touching the engine: it compares all
+96 fields against the fixture's real transcription, so any regression shows up
+there. `test_clipboard.js` extracts its functions straight out of `index.html` so
+it cannot drift away from the interface.
 
-## Estructura
+## Layout
 
 ```
 app/
-  main.py          API HTTP (FastAPI)
-  dex.py           vocabulario de Showdown y anclaje tolerante a erratas
-  champions.py     modelo de estadísticas del juego y conversión a Showdown
-  paste.py         normalización, avisos y renderizado del pokepaste
-  schema.py        forma de los datos que devuelve el motor de visión
+  main.py          HTTP API (FastAPI)
+  dex.py           Showdown's vocabulary and typo-tolerant anchoring
+  champions.py     the game's stat model and its conversion to Showdown
+  paste.py         normalisation, warnings and pokepaste rendering
+  schema.py        the shape of the data a vision engine returns
   vision/
-    ocr.py         motor por defecto: geometría + OCR + color
-    ollama.py      alternativa con modelo local (sin verificar)
-    claude.py      alternativa con la API de Anthropic (sin verificar)
-  static/index.html  interfaz completa, sin dependencias externas
-scripts/build_dex.py  descarga y cachea los nombres canónicos
-tests/fixtures/       capturas reales y su transcripción
+    ocr.py         default engine: geometry + OCR + colour
+    ollama.py      alternative using a local model (unverified)
+    claude.py      alternative using the Anthropic API (unverified)
+  static/index.html  the whole interface, no external dependencies
+scripts/build_dex.py  downloads and caches the canonical names
+tests/fixtures/       real screenshots and their transcription
 ```
 
 ## API
 
-| Endpoint | Qué hace |
+| Endpoint | What it does |
 |---|---|
-| `POST /api/extract` | 1-2 imágenes (multipart) → equipo leído, normalizado y paste |
-| `POST /api/render` | Equipo editado (JSON) → re-normaliza y re-renderiza |
-| `GET /api/vocab` | Nombres canónicos, para el autocompletado del editor |
-| `GET /api/health` | Estado y motor activo |
+| `POST /api/extract` | 1-2 images (multipart) → team read, normalised, and paste |
+| `POST /api/render` | Edited team (JSON) → re-normalise and re-render |
+| `GET /api/vocab` | Canonical names, for the editor's autocomplete |
+| `GET /api/health` | Status and active engine |
 
-## Variables de entorno
+## Environment variables
 
-| Variable | Por defecto | Para qué |
+| Variable | Default | Purpose |
 |---|---|---|
-| `VISION_BACKEND` | `ocr` | `ocr`, `ollama` o `claude` |
-| `MAX_IMAGE_BYTES` | `8388608` | Tamaño máximo por captura |
-| `OLLAMA_HOST` | `http://localhost:11434` | Solo con `ollama` |
-| `OLLAMA_MODEL` | `qwen3-vl:8b` | Solo con `ollama` |
-| `ANTHROPIC_API_KEY` | — | Solo con `claude` |
-| `ANTHROPIC_MODEL` | `claude-opus-5` | Solo con `claude` |
+| `VISION_BACKEND` | `ocr` | `ocr`, `ollama` or `claude` |
+| `MAX_IMAGE_BYTES` | `8388608` | Maximum size per screenshot |
+| `OLLAMA_HOST` | `http://localhost:11434` | Only with `ollama` |
+| `OLLAMA_MODEL` | `qwen3-vl:8b` | Only with `ollama` |
+| `ANTHROPIC_API_KEY` | — | Only with `claude` |
+| `ANTHROPIC_MODEL` | `claude-opus-5` | Only with `claude` |
 
-La versión de `rapidocr-onnxruntime` está **fijada a la 1.2.3**. No es purismo:
-la 1.4 reorganizó su API interna y dejó de exponer `text_detector` /
-`text_recognizer`, que son las dos piezas que este motor usa por separado para
-acotar primero y leer después. Si se instala una versión que no las trae, el
-motor lo dice con un mensaje claro en lugar de fallar por dentro.
+`rapidocr-onnxruntime` is **pinned to 1.2.3**. Not out of purism: 1.4
+reorganised its internal API and stopped exposing `text_detector` /
+`text_recognizer`, the two pieces this engine drives separately to narrow down
+first and read afterwards. If a version without them ever gets installed, the
+engine says so with a clear message instead of failing somewhere deep inside.
 
 ---
 
-## Limitaciones conocidas
+## Known limitations
 
-**La precisión está medida sobre un solo equipo.** Seis Pokémon, 96 campos, una
-sola resolución (1998×922). La geometría se expresa en fracciones de la tarjeta
-detectada y los números se autocalibran con la barra, así que debería aguantar
-otras resoluciones — pero eso **no está comprobado**.
+**Accuracy is measured on a single team.** Six Pokémon, 96 fields, one resolution
+(1998×922). The geometry is expressed as fractions of the detected card and the
+numbers self-calibrate against the bar, so it should hold at other resolutions —
+but that **is not verified**.
 
-**Los motores `ollama` y `claude` nunca se han ejecutado.** Comparten un prompt
-calibrado contra la maquetación real del juego, pero no había ni GPU ni
-credenciales para probarlos. El motor `ocr`, que es el que viene por defecto, sí
-está verificado de principio a fin.
+**The `ollama` and `claude` engines have never been run.** They share a prompt
+calibrated against the game's real layout, but there was neither a GPU nor
+credentials available to test them. The `ocr` engine, which is the default, is
+verified end to end.
 
-**El Teracristal no se lee**, porque no aparece en ninguna de las dos pestañas
-capturadas. El campo existe en el esquema y en el editor por si el juego lo
-muestra en algún sitio que aún no he visto.
+**Tera type is not read**, because it does not appear on either of the two
+captured tabs. The field exists in the schema and in the editor in case the game
+shows it somewhere I have not seen yet.

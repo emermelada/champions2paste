@@ -1,6 +1,6 @@
-"""Compara la lectura del motor OCR contra la transcripcion real del fixture.
+"""Compare the OCR engine's reading against the fixture's real transcription.
 
-Necesita rapidocr-onnxruntime instalado; se omite si no esta.
+Needs rapidocr-onnxruntime installed; skipped if it is not.
 `python tests/test_ocr.py`
 """
 
@@ -19,7 +19,7 @@ def main() -> int:
     try:
         import rapidocr_onnxruntime  # noqa: F401
     except ImportError:
-        print("rapidocr-onnxruntime no instalado: prueba omitida")
+        print("rapidocr-onnxruntime not installed: test skipped")
         return 0
 
     from app import paste
@@ -41,31 +41,31 @@ def main() -> int:
         if got == want:
             hits += 1
         else:
-            misses.append(f"{label}: leido {got!r}, esperado {want!r}")
+            misses.append(f"{label}: read {got!r}, expected {want!r}")
 
     if len(read) != len(truth):
-        print(f"FALLO: leidos {len(read)} Pokemon, esperados {len(truth)}")
+        print(f"FAILURE: read {len(read)} Pokemon, expected {len(truth)}")
         return 1
 
     for mon, want in zip(read, truth):
         name = want["species"]
-        compare(f"{name} especie", mon["species"]["value"], want["species"])
-        compare(f"{name} genero", mon["gender"], want["gender"])
-        compare(f"{name} habilidad", mon["ability"]["value"], want["ability"])
-        compare(f"{name} objeto", mon["item"]["value"], want["item"])
+        compare(f"{name} species", mon["species"]["value"], want["species"])
+        compare(f"{name} gender", mon["gender"], want["gender"])
+        compare(f"{name} ability", mon["ability"]["value"], want["ability"])
+        compare(f"{name} item", mon["item"]["value"], want["item"])
         for i, move in enumerate(want["moves"]):
-            compare(f"{name} mov{i + 1}", mon["moves"][i]["value"], move)
+            compare(f"{name} move{i + 1}", mon["moves"][i]["value"], move)
         for key, value in want["sp"].items():
             compare(f"{name} SP {key}", mon["sp"].get(key), value)
         compare(f"{name} ▲", mon["boosted_stat"], want["boosted_stat"])
         compare(f"{name} ▼", mon["hindered_stat"], want["hindered_stat"])
 
-    print(f"{hits}/{total} campos correctos ({hits / total:.1%})")
+    print(f"{hits}/{total} fields correct ({hits / total:.1%})")
     for m in misses:
-        print("  FALLA", m)
+        print("  MISS", m)
 
     warnings = [w for mon in read for w in mon["warnings"]]
-    print(f"\n{len(warnings)} avisos:")
+    print(f"\n{len(warnings)} warnings:")
     for w in warnings:
         print("  *", w)
 

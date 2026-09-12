@@ -1,10 +1,10 @@
-"""Normalizacion de nombres contra el vocabulario cerrado de Showdown.
+"""Name normalisation against Showdown's closed vocabulary.
 
-Esta es la pieza que hace que el paste sea *valido* y no solo plausible. Un
-modelo de vision leyendo una captura devuelve texto aproximado ("Rillabom",
-"Assault Vest " con espacio, "Landorus-T"); Showdown rechaza cualquier cosa que
-no sea la ortografia exacta. Aqui cada cadena extraida se ancla al nombre
-canonico mas cercano, o se marca como dudosa para que el usuario la revise.
+This is the piece that makes the paste *valid* rather than merely plausible. OCR
+reading a screenshot returns approximate text ("Rillabom", "Assault Vest " with a
+trailing space, "Landorus-T"); Showdown rejects anything that is not the exact
+spelling. Here every extracted string is anchored to the nearest canonical name,
+or flagged as doubtful so the user can review it.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ TERA_TYPES = [
     "Steel", "Stellar", "Water",
 ]
 
-# Orden en que Showdown espera las estadisticas en las lineas EVs / IVs.
+# The order Showdown expects stats in on the EVs / IVs lines.
 STAT_ORDER = ["hp", "atk", "defense", "sp_atk", "sp_def", "speed"]
 STAT_LABELS = {
     "hp": "HP", "atk": "Atk", "defense": "Def",
@@ -40,17 +40,17 @@ _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 
 
 def to_id(value: str) -> str:
-    """Equivalente al `toID` de Showdown: minusculas sin nada que no sea alfanumerico."""
+    """Showdown's `toID`: lowercase, stripped of everything non-alphanumeric."""
     return _NON_ALNUM.sub("", value.lower())
 
 
 @dataclass(frozen=True)
 class Match:
-    """Resultado de anclar una cadena leida al vocabulario canonico."""
+    """The result of anchoring a read string to the canonical vocabulary."""
 
-    value: str | None          # nombre canonico, o None si no hubo candidato
-    raw: str                   # lo que devolvio el modelo de vision
-    exact: bool                # True si coincidio sin necesidad de fuzzy
+    value: str | None          # canonical name, or None if nothing came close
+    raw: str                   # what the vision engine returned
+    exact: bool                # True if it matched without needing fuzzy search
 
     @property
     def uncertain(self) -> bool:
@@ -58,7 +58,7 @@ class Match:
 
 
 class Vocabulary:
-    """Un conjunto cerrado de nombres validos con busqueda tolerante a erratas."""
+    """A closed set of valid names with typo-tolerant lookup."""
 
     def __init__(self, names: list[str]) -> None:
         self.names = names
@@ -74,10 +74,10 @@ class Vocabulary:
         if key in self._by_id:
             return Match(self._by_id[key], raw, True)
 
-        # El umbral escala con la longitud: una errata de un caracter pesa mucho
-        # mas en "watar" (0.80 de parecido con "water") que en un nombre largo,
-        # mientras que aflojar el listen en cadenas de 3-4 letras haria que "Ice"
-        # casara con media docena de movimientos distintos.
+        # The threshold scales with length: a one-character typo weighs far more
+        # in "watar" (0.80 similar to "water") than in a long name, while
+        # loosening the bar on 3-4 letter strings would make "Ice" match half a
+        # dozen different moves.
         length = len(key)
         if length <= 4:
             cutoff = 0.85
@@ -95,7 +95,7 @@ class Vocabulary:
 def _load() -> dict[str, Vocabulary]:
     if not DEX_PATH.exists():
         raise RuntimeError(
-            f"Falta {DEX_PATH}. Ejecuta `python scripts/build_dex.py` para generarlo."
+            f"{DEX_PATH} is missing. Run `python scripts/build_dex.py` to generate it."
         )
     data = json.loads(DEX_PATH.read_text(encoding="utf-8"))
     global BASE_STATS
@@ -106,7 +106,7 @@ def _load() -> dict[str, Vocabulary]:
     return vocab
 
 
-BASE_STATS: dict[str, list[int]] = {}   # especie -> [HP, Atk, Def, SpA, SpD, Spe]
+BASE_STATS: dict[str, list[int]] = {}   # species -> [HP, Atk, Def, SpA, SpD, Spe]
 
 VOCAB = _load()
 

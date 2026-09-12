@@ -98,50 +98,50 @@
 <body>
 <header>
   <h1>champions2paste</h1>
-  <span>Capturas de Pokémon Champions → paste de Pokémon Showdown</span>
+  <span>Pokémon Champions screenshots → Pokémon Showdown paste</span>
 </header>
 
 <main>
   <div>
     <section class="panel">
-      <h2>Capturas <span class="hint">arrastra, haz clic o pega con Ctrl+V</span></h2>
+      <h2>Screenshots <span class="hint">drag, click, or paste with Ctrl+V</span></h2>
       <div class="drops">
         <label class="drop" id="drop0">
           <strong>Moves &amp; More</strong>
-          <em>Pokémon, movimientos y objetos</em>
+          <em>Pokémon, moves and items</em>
           <input type="file" accept="image/png,image/jpeg,image/webp">
-          <button class="clear" type="button" title="Quitar">&times;</button>
+          <button class="clear" type="button" title="Remove">&times;</button>
         </label>
         <label class="drop" id="drop1">
           <strong>Stats</strong>
-          <em>SP y naturaleza</em>
+          <em>SP and nature</em>
           <input type="file" accept="image/png,image/jpeg,image/webp">
-          <button class="clear" type="button" title="Quitar">&times;</button>
+          <button class="clear" type="button" title="Remove">&times;</button>
         </label>
       </div>
-      <p class="note">El orden da igual: cada captura se reconoce por la pestaña
-        que tiene resaltada. Puedes subir solo una, las dos, o ponerlas al revés.</p>
+      <p class="note">Order does not matter: each screenshot is identified by the tab
+        it has highlighted. Upload just one, both, or put them the wrong way round.</p>
       <div class="actions">
-        <button id="go" disabled>Convertir</button>
-        <label>Nivel <input type="number" id="level" value="50" min="1" max="100"></label>
-        <label title="Champions usa 32 por estadística y 66 en total, que es lo que esperan sus formatos en Showdown. La escala clásica multiplica por 8 para calculadoras antiguas.">
-          <input type="checkbox" id="legacy" style="width:auto"> EVs clásicos (×8)</label>
+        <button id="go" disabled>Convert</button>
+        <label>Level <input type="number" id="level" value="50" min="1" max="100"></label>
+        <label title="Champions uses 32 per stat and 66 in total, which is what its Showdown formats expect. The classic scale multiplies by 8 for older calculators.">
+          <input type="checkbox" id="legacy" style="width:auto"> Classic EVs (×8)</label>
       </div>
       <div class="status" id="status"></div>
     </section>
 
     <section class="panel" id="editorPanel" hidden>
-      <h2>Revisión</h2>
+      <h2>Review</h2>
       <div id="editor"></div>
     </section>
   </div>
 
   <section class="panel" id="out">
     <h2>Pokepaste</h2>
-    <pre id="paste" class="empty">Aún no hay nada que convertir.</pre>
+    <pre id="paste" class="empty">Nothing to convert yet.</pre>
     <div class="actions">
-      <button id="copy" class="ghost" disabled>Copiar</button>
-      <button id="download" class="ghost" disabled>Descargar .txt</button>
+      <button id="copy" class="ghost" disabled>Copy</button>
+      <button id="download" class="ghost" disabled>Download .txt</button>
     </div>
   </section>
 </main>
@@ -155,13 +155,13 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const files = [null, null];
-let team = null;            // RawTeam editable
+let team = null;            // the editable RawTeam
 let pasteText = "";
 
 const STATS = [["hp","HP"],["atk","Atk"],["defense","Def"],["sp_atk","SpA"],["sp_def","SpD"],["speed","Spe"]];
-const MAX_SP_STAT = 32, MAX_SP_TOTAL = 66;   // topes del sistema de Champions
+const MAX_SP_STAT = 32, MAX_SP_TOTAL = 66;   // the Champions system caps
 
-/* ---------- autocompletado ---------- */
+/* ---------- autocomplete ---------- */
 fetch("/api/vocab").then(r => r.json()).then(v => {
   const fill = (id, names) => {
     const list = $(id);
@@ -174,9 +174,9 @@ fetch("/api/vocab").then(r => r.json()).then(v => {
   fill("dl-abilities", v.abilities); fill("dl-tera", v.tera);
 }).catch(() => {});
 
-/* ---------- carga de imágenes ---------- */
-// Tipo propio del arrastre interno. Sirve para distinguir "mover una imagen de
-// un hueco al otro" de "soltar un fichero venido del escritorio".
+/* ---------- loading images ---------- */
+// Our own MIME type for internal drags. It tells "move an image from one slot to
+// the other" apart from "drop a file coming from the desktop".
 const SLOT_MIME = "application/x-c2p-slot";
 
 const zones = [0, 1].map(i => $("drop" + i));
@@ -191,7 +191,7 @@ function render(i) {
   if (file) {
     const img = document.createElement("img");
     img.src = URL.createObjectURL(file);
-    img.alt = file.name || "captura pegada";
+    img.alt = file.name || "pasted screenshot";
     img.draggable = true;
     zone.append(img);
   }
@@ -207,7 +207,7 @@ function setFile(i, file) {
 
 function clearSlot(i) {
   files[i] = null;
-  // Sin vaciar el input, volver a elegir el mismo fichero no dispararia change.
+  // Without clearing the input, picking the same file again would not fire change.
   zones[i].querySelector("input").value = "";
   render(i);
 }
@@ -218,7 +218,7 @@ function swapSlots(a, b) {
   zones.forEach(z => z.querySelector("input").value = "");
   render(a);
   render(b);
-  setStatus("Capturas intercambiadas.");
+  setStatus("Screenshots swapped.");
 }
 
 zones.forEach((zone, i) => {
@@ -239,7 +239,7 @@ zones.forEach((zone, i) => {
 
   zone.addEventListener("dragover", e => {
     e.preventDefault();
-    // Durante dragover el navegador no deja leer los datos, solo los tipos.
+    // During dragover the browser will not reveal the data, only the types.
     const internal = [...e.dataTransfer.types].includes(SLOT_MIME);
     e.dataTransfer.dropEffect = internal ? "move" : "copy";
     zone.classList.add(internal ? "swap" : "over");
@@ -254,15 +254,15 @@ zones.forEach((zone, i) => {
     setFile(i, e.dataTransfer.files[0]);
   });
 
-  // El boton vive dentro de un <label>, asi que sin frenar el evento el clic
-  // acabaria abriendo tambien el selector de archivos.
+  // The button lives inside a <label>, so without stopping the event the click
+  // would also end up opening the file picker.
   zone.querySelector(".clear").addEventListener("click", e => {
     e.preventDefault(); e.stopPropagation(); clearSlot(i);
   });
 });
 
-/* ---------- pegar desde el portapapeles ---------- */
-// Se escucha en todo el documento: Ctrl+V funciona sin enfocar nada primero.
+/* ---------- pasting from the clipboard ---------- */
+// Listened for on the whole document: Ctrl+V works without focusing anything first.
 function imagesFromClipboard(data) {
   if (!data) return [];
   const fromItems = [...(data.items || [])]
@@ -270,12 +270,12 @@ function imagesFromClipboard(data) {
     .map(it => it.getAsFile());
   const fromFiles = [...(data.files || [])].filter(f => f.type.startsWith("image/"));
   const all = [...fromItems, ...fromFiles].filter(Boolean);
-  // Un mismo portapapeles puede exponer la imagen por las dos vias a la vez.
+  // One clipboard can expose the same image through both paths at once.
   return all.filter((f, n) => all.findIndex(
     o => o.size === f.size && o.type === f.type) === n);
 }
 
-// Primer hueco libre; si los dos estan ocupados, se sustituye el primero.
+// First free slot; if both are taken, the first one is replaced.
 function targetSlot() {
   const free = files.findIndex(f => !f);
   return free === -1 ? 0 : free;
@@ -284,7 +284,7 @@ function targetSlot() {
 function flash(i) {
   const zone = $("drop" + i);
   zone.classList.remove("pasted");
-  void zone.offsetWidth;              // reinicia la animacion
+  void zone.offsetWidth;              // restarts the animation
   zone.classList.add("pasted");
 }
 
@@ -298,16 +298,16 @@ document.addEventListener("paste", e => {
     const i = targetSlot();
     if (setFile(i, file)) { used.push(i + 1); flash(i); }
   }
-  if (used.length) setStatus(`Imagen pegada en el hueco ${used.join(" y ")}.`);
+  if (used.length) setStatus(`Image pasted into slot ${used.join(" and ")}.`);
 });
 
-/* ---------- extracción ---------- */
+/* ---------- extraction ---------- */
 $("go").addEventListener("click", async () => {
   const body = new FormData();
   files.filter(Boolean).forEach(f => body.append("files", f));
 
   $("go").disabled = true;
-  setStatus("Leyendo las capturas…");
+  setStatus("Reading the screenshots…");
 
   try {
     const res = await fetch(`/api/extract?level=${encodeURIComponent($("level").value)}`
@@ -316,7 +316,7 @@ $("go").addEventListener("click", async () => {
     if (!res.ok) throw new Error(data.detail || `Error ${res.status}`);
     team = data.team;
     apply(data, true);
-    setStatus(`${team.pokemon.length} Pokémon leídos. Revisa los campos marcados antes de copiar.`);
+    setStatus(`${team.pokemon.length} Pokémon read. Check the flagged fields before copying.`);
   } catch (err) {
     setStatus(err.message, true);
   } finally {
@@ -329,7 +329,7 @@ function setStatus(msg, isError = false) {
   $("status").classList.toggle("error", isError);
 }
 
-/* ---------- re-render tras editar ---------- */
+/* ---------- re-render after editing ---------- */
 let pending;
 function rerender() {
   clearTimeout(pending);
@@ -340,14 +340,14 @@ function rerender() {
       body: JSON.stringify({ team, level: Number($("level").value) || null,
                              legacy: $("legacy").checked }),
     });
-    if (res.ok) apply(await res.json());   // sin redraw
+    if (res.ok) apply(await res.json());   // no redraw
   }, 250);
 }
 $("level").addEventListener("input", () => { if (team) rerender(); });
 $("legacy").addEventListener("change", () => { if (team) rerender(); });
 
-// `redraw` solo en una extraccion nueva: reconstruir el DOM en cada pulsacion
-// de tecla haria perder el foco del campo que se esta editando.
+// `redraw` only on a fresh extraction: rebuilding the DOM on every keystroke
+// would lose focus on the field being edited.
 function apply(data, redraw = false) {
   pasteText = data.paste;
   $("paste").textContent = pasteText || "—";
@@ -375,10 +375,10 @@ function field(label, list, value, cls, onInput) {
   return wrap;
 }
 
-// Rojo: no existe en Showdown. Ámbar: existía parecido y se ha corregido solo.
+// Red: does not exist in Showdown. Amber: something close existed and was auto-corrected.
 const mark = (f) => !f || !f.raw ? "" : f.value === null ? "unknown" : f.exact ? "" : "fix";
 
-const cards = [];   // refs por Pokemon, para repintar sin reconstruir
+const cards = [];   // per-Pokemon refs, so markers repaint without a rebuild
 
 function warnList(warnings) {
   const ul = document.createElement("ul");
@@ -403,7 +403,7 @@ function updateMarks(mons) {
     const total = Object.values(mon.sp).reduce((a, b) => a + b, 0);
     ref.total.textContent = `${total}/${MAX_SP_TOTAL} SP`;
     ref.total.classList.toggle("off", total !== MAX_SP_TOTAL);
-    ref.nature.textContent = mon.nature ? `${mon.nature} Nature` : "naturaleza neutra";
+    ref.nature.textContent = mon.nature ? `${mon.nature} Nature` : "neutral nature";
     ref.warns.replaceWith(ref.warns = warnList(mon.warnings));
   });
 }
@@ -423,9 +423,9 @@ function drawEditor(mons) {
 
     const top = document.createElement("div");
     top.className = "row";
-    const fSpecies = field("Especie", "dl-species", raw.species, mark(mon.species), v => raw.species = v);
-    const fItem = field("Objeto", "dl-items", raw.item, mark(mon.item), v => raw.item = v || null);
-    const fAbility = field("Habilidad", "dl-abilities", raw.ability, mark(mon.ability), v => raw.ability = v || null);
+    const fSpecies = field("Species", "dl-species", raw.species, mark(mon.species), v => raw.species = v);
+    const fItem = field("Item", "dl-items", raw.item, mark(mon.item), v => raw.item = v || null);
+    const fAbility = field("Ability", "dl-abilities", raw.ability, mark(mon.ability), v => raw.ability = v || null);
     const fTera = field("Tera", "dl-tera", raw.tera_type, mark(mon.tera_type), v => raw.tera_type = v || null);
     ref.species = fSpecies.input; ref.item = fItem.input;
     ref.ability = fAbility.input; ref.tera = fTera.input;
@@ -434,9 +434,9 @@ function drawEditor(mons) {
     const mid = document.createElement("div");
     mid.className = "row moves";
     for (let m = 0; m < 4; m++) {
-      // Se mantiene la posicion del hueco mientras se edita; los vacios se
-      // descartan al renderizar, no al escribir, para no desplazar los campos.
-      const f = field(`Movimiento ${m + 1}`, "dl-moves", raw.moves[m],
+      // Slot positions are kept while editing; empty ones are dropped at render
+      // time, not while typing, so the fields never shift under the cursor.
+      const f = field(`Move ${m + 1}`, "dl-moves", raw.moves[m],
         mark(mon.moves[m]), v => {
           while (raw.moves.length <= m) raw.moves.push("");
           raw.moves[m] = v;
@@ -445,8 +445,8 @@ function drawEditor(mons) {
       mid.append(f);
     }
 
-    // Champions no nombra la naturaleza: se deduce de que estadistica lleva las
-    // flechas rojas hacia arriba y cual las azules hacia abajo.
+    // Champions never names the nature: it is derived from which stat carries the
+    // pink arrows pointing up and which one the blue arrows pointing down.
     const spRow = document.createElement("div");
     spRow.className = "row evs";
     ref.sp = {};
@@ -493,17 +493,17 @@ function drawEditor(mons) {
   });
 }
 
-/* ---------- salida ---------- */
+/* ---------- output ---------- */
 $("copy").addEventListener("click", async () => {
   await navigator.clipboard.writeText(pasteText);
-  $("copy").textContent = "Copiado";
-  setTimeout(() => $("copy").textContent = "Copiar", 1400);
+  $("copy").textContent = "Copied";
+  setTimeout(() => $("copy").textContent = "Copy", 1400);
 });
 
 $("download").addEventListener("click", () => {
   const url = URL.createObjectURL(new Blob([pasteText], { type: "text/plain" }));
   const a = document.createElement("a");
-  a.href = url; a.download = "equipo.txt"; a.click();
+  a.href = url; a.download = "team.txt"; a.click();
   URL.revokeObjectURL(url);
 });
 </script>

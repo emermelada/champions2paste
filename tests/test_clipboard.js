@@ -1,6 +1,6 @@
-/* Comprueba la logica de la zona de capturas: pegado desde el portapapeles e
- * intercambio entre huecos. Las funciones se extraen de index.html para que la
- * prueba no se desincronice de la interfaz.
+/* Checks the screenshot drop-zone logic: pasting from the clipboard and
+ * swapping between slots. The functions are extracted straight out of
+ * index.html so the test cannot drift away from the interface.
  *
  *   node tests/test_clipboard.js
  */
@@ -12,16 +12,16 @@ const html = fs.readFileSync(
 
 function grab(name) {
   const start = html.indexOf(`function ${name}(`);
-  if (start === -1) throw new Error(`no encuentro ${name}() en index.html`);
+  if (start === -1) throw new Error(`cannot find ${name}() in index.html`);
   let depth = 0;
   for (let i = html.indexOf("{", start); i < html.length; i++) {
     if (html[i] === "{") depth++;
     if (html[i] === "}" && --depth === 0) return html.slice(start, i + 1);
   }
-  throw new Error(`${name}() sin cerrar`);
+  throw new Error(`${name}() is never closed`);
 }
 
-// Sustitutos minimos del DOM: solo lo que tocan las funciones bajo prueba.
+// Minimal DOM stand-ins: only what the functions under test actually touch.
 let files = [null, null];
 const rendered = [];
 const makeZone = () => {
@@ -38,50 +38,50 @@ eval(grab("targetSlot"));
 eval(grab("swapSlots"));
 
 let failures = 0;
-const ok = (cond, msg) => { if (!cond) { console.log("  FALLA", msg); failures++; } };
+const ok = (cond, msg) => { if (!cond) { console.log("  FAIL", msg); failures++; } };
 const png = (name = "a.png", size = 100) => ({ type: "image/png", size, name });
 const item = (f) => ({ kind: "file", type: f.type, getAsFile: () => f });
 
-/* --- portapapeles --- */
+/* --- clipboard --- */
 let r = imagesFromClipboard({ items: [item(png())], files: [] });
-ok(r.length === 1, `una captura normal -> ${r.length}`);
+ok(r.length === 1, `one ordinary screenshot -> ${r.length}`);
 
 const same = png();
 r = imagesFromClipboard({ items: [item(same)], files: [same] });
-ok(r.length === 1, `la misma imagen por items y por files -> ${r.length}, deberia ser 1`);
+ok(r.length === 1, `same image via items and files -> ${r.length}, should be 1`);
 
 r = imagesFromClipboard({ items: [{ kind: "string", type: "text/plain" }], files: [] });
-ok(r.length === 0, `pegar texto -> ${r.length}, deberia ser 0`);
+ok(r.length === 0, `pasting text -> ${r.length}, should be 0`);
 
-ok(imagesFromClipboard(null).length === 0, "clipboardData nulo");
-ok(imagesFromClipboard({}).length === 0, "clipboardData sin items ni files");
+ok(imagesFromClipboard(null).length === 0, "null clipboardData");
+ok(imagesFromClipboard({}).length === 0, "clipboardData with neither items nor files");
 
 r = imagesFromClipboard({ items: [item(png("a.png")), item(png("b.png", 200))], files: [] });
-ok(r.length === 2, `dos imagenes distintas -> ${r.length}`);
+ok(r.length === 2, `two different images -> ${r.length}`);
 
-/* --- asignacion de huecos --- */
-files = [null, null]; ok(targetSlot() === 0, "ambos vacios -> hueco 0");
-files = [png(), null]; ok(targetSlot() === 1, "primero lleno -> hueco 1");
-files = [null, png()]; ok(targetSlot() === 0, "segundo lleno -> hueco 0");
-files = [png(), png()]; ok(targetSlot() === 0, "ambos llenos -> sustituye el 0");
+/* --- slot assignment --- */
+files = [null, null]; ok(targetSlot() === 0, "both empty -> slot 0");
+files = [png(), null]; ok(targetSlot() === 1, "first filled -> slot 1");
+files = [null, png()]; ok(targetSlot() === 0, "second filled -> slot 0");
+files = [png(), png()]; ok(targetSlot() === 0, "both filled -> replaces slot 0");
 
-/* --- intercambio --- */
+/* --- swapping --- */
 const a = png("stats.png"), b = png("moves.png", 200);
 files = [a, b]; rendered.length = 0; status = "";
 swapSlots(0, 1);
-ok(files[0] === b && files[1] === a, "intercambio de dos huecos llenos");
-ok(rendered.includes(0) && rendered.includes(1), "se repintan los dos huecos");
-ok(zones.every(z => z.input.value === ""), "se vacian los inputs tras intercambiar");
-ok(status.includes("intercambiadas"), "avisa al usuario del intercambio");
+ok(files[0] === b && files[1] === a, "swapping two filled slots");
+ok(rendered.includes(0) && rendered.includes(1), "both slots are repainted");
+ok(zones.every(z => z.input.value === ""), "inputs are cleared after a swap");
+ok(status.toLowerCase().includes("swapped"), "the user is told about the swap");
 
 files = [a, null]; rendered.length = 0;
 swapSlots(0, 1);
-ok(files[0] === null && files[1] === a, "mover a un hueco vacio deja el origen libre");
+ok(files[0] === null && files[1] === a, "moving into an empty slot leaves the source free");
 
 files = [a, b]; rendered.length = 0;
 swapSlots(1, 1);
 ok(files[0] === a && files[1] === b && rendered.length === 0,
-   "soltar sobre el mismo hueco no hace nada");
+   "dropping onto the same slot does nothing");
 
-console.log(failures ? `\n${failures} FALLOS` : "\n16 comprobaciones OK");
+console.log(failures ? `\n${failures} FAILURES` : "\n16 checks passed");
 process.exit(failures ? 1 : 0);

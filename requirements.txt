@@ -4,19 +4,20 @@ python-multipart>=0.0.20
 pydantic>=2.10
 httpx>=0.28
 
-# Motor OCR (VISION_BACKEND=ocr, el que viene por defecto). Los modelos ONNX
-# van dentro del paquete: el contenedor no descarga nada al arrancar.
-# opencv NO se lista aqui a proposito: lo arrastra rapidocr como
-# opencv-python, y el Dockerfile lo sustituye despues por la variante headless.
-# Listar headless aqui hacia que se instalaran los dos, y como comparten el
-# directorio cv2, desinstalar uno borraba los ficheros del otro.
-# Version fijada, no por capricho: la 1.4 reestructuro la API interna y dejo de
-# exponer text_detector/text_recognizer, que son justo las piezas que usa
-# app/vision/ocr.py para separar deteccion y reconocimiento. La 1.2.3 es la que
-# esta medida al 100% sobre el fixture.
+# OCR engine (VISION_BACKEND=ocr, the default). The ONNX models ship inside the
+# package, so the container downloads nothing at startup.
+#
+# The version is pinned deliberately: 1.4 reorganised the internal API and
+# stopped exposing text_detector / text_recognizer, which are the two pieces
+# app/vision/ocr.py drives separately to narrow down first and read afterwards.
 rapidocr-onnxruntime==1.2.3
 numpy>=1.26
 pillow>=10.0
 
-# Solo hace falta con VISION_BACKEND=claude.
+# opencv is NOT listed here on purpose: rapidocr pulls it in as opencv-python,
+# and the Dockerfile then swaps it for the headless variant. Listing headless
+# here caused both to be installed, and since they share the cv2 directory,
+# uninstalling one deleted the other's files.
+
+# Only needed with VISION_BACKEND=claude.
 anthropic>=0.40

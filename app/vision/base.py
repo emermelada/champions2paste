@@ -1,4 +1,4 @@
-"""Contrato comun a todos los motores de vision."""
+"""The contract shared by every vision engine."""
 
 from __future__ import annotations
 
@@ -6,84 +6,85 @@ from typing import Protocol
 
 from ..schema import RawTeam
 
-# El modelo transcribe; no corrige. La correccion ortografica la hace dex.py
-# contra el vocabulario real de Showdown, que acierta mucho mas que un modelo
-# adivinando a que se parecia lo que acaba de leer.
-PROMPT = """Lees capturas de la pantalla "Replicate This Battle Team?" del
-videojuego Pokemon Champions. Los textos estan en ingles.
+# The model transcribes; it does not correct. Spelling is fixed downstream by
+# dex.py against Showdown's real vocabulary, which is far more accurate than a
+# model guessing what the text it just read was supposed to say.
+PROMPT = """You are reading screenshots of the "Replicate This Battle Team?"
+screen from the video game Pokemon Champions.
 
-MAQUETACION DE LA PANTALLA
+SCREEN LAYOUT
 
-Arriba hay un "Team ID" y dos pestanas; la activa aparece resaltada en verde:
-- "Moves & More": especies, generos, habilidades, objetos y movimientos.
-- "Stats": naturaleza, puntos de esfuerzo (SP) y, si los hay, IVs y Teracristal.
+At the top there is a "Team ID" and two tabs; the active one is highlighted in
+green:
+- "Moves & More": species, genders, abilities, held items and moves.
+- "Stats": nature, stat points (SP) and, if present, Tera type.
 
-Debajo hay hasta seis tarjetas en dos columnas y tres filas. Cada tarjeta lleva
-un numero grande y tenue de fondo, del 1 al 6, que es su posicion en el equipo:
-la 1 y la 2 arriba (izquierda y derecha), la 3 y la 4 en medio, la 5 y la 6
-abajo. Devuelve los Pokemon ordenados por ese numero.
+Below are up to six cards in two columns and three rows. Each card carries a
+large, faint background number from 1 to 6, which is its position in the team:
+1 and 2 on top (left and right), 3 and 4 in the middle, 5 and 6 at the bottom.
+Return the Pokemon ordered by that number.
 
-En la pestana "Moves & More" cada tarjeta contiene:
-- Arriba y en grande, el nombre de la especie.
-- A su derecha, un simbolo de genero y uno o dos iconos de tipo.
-- Justo debajo del nombre y sin icono, la HABILIDAD.
-- Debajo y con un icono de objeto, el OBJETO equipado.
-- En la columna derecha, los cuatro MOVIMIENTOS, cada uno con un icono.
+On the "Moves & More" tab each card contains:
+- At the top, in large type, the species name.
+- To its right, a gender symbol and one or two type icons.
+- Directly below the name and with no icon, the ABILITY.
+- Below that and with an item icon, the held ITEM.
+- In the right-hand column, the four MOVES, each with an icon.
 
-En la pestana "Stats" cada tarjeta contiene las seis estadisticas en dos
-columnas: a la izquierda HP, Attack y Defense; a la derecha Sp. Atk, Sp. Def y
-Speed. Cada fila lleva, en este orden:
+On the "Stats" tab each card contains the six stats in two columns: HP, Attack
+and Defense on the left; Sp. Atk, Sp. Def and Speed on the right. Each row reads,
+in this order:
 
-  [icono] [nombre] [flechas?] [NUMERO GRANDE] [barra] [numero pequeno]
+  [icon] [name] [arrows?] [LARGE NUMBER] [bar] [small number]
 
-- El NUMERO GRANDE, pegado al nombre, es el valor final de la estadistica
-  (rondan las tres cifras). Va en `stats`.
-- El numero pequeno, al final de la fila y despues de la barra de color, son los
-  puntos invertidos: de 0 a 32. Va en `sp`. La suma de los seis es SIEMPRE 66.
-- Las flechas solo aparecen en dos estadisticas: unas rojas hacia ARRIBA en la
-  potenciada (`boosted_stat`) y unas azules hacia ABAJO en la reducida
-  (`hindered_stat`). Asi se indica la naturaleza, que no se escribe en ninguna
-  parte. Si no ves flechas, deja ambos campos a null.
-- Usa estos identificadores para las flechas: hp, atk, defense, sp_atk, sp_def,
-  speed.
+- The LARGE NUMBER, next to the name, is the stat's final value (usually three
+  digits). It goes in `stats`.
+- The small number, at the end of the row after the coloured bar, is the points
+  invested: 0 to 32. It goes in `sp`. The six ALWAYS add up to 66.
+- Arrows appear on only two stats: pink ones pointing UP on the boosted stat
+  (`boosted_stat`) and blue ones pointing DOWN on the hindered stat
+  (`hindered_stat`). That is how the nature is shown, since it is never written
+  anywhere. If you see no arrows, leave both fields null.
+- Use these identifiers for the arrows: hp, atk, defense, sp_atk, sp_def, speed.
 
-No confundas los dos numeros: el grande ronda 50-250 y el pequeno nunca pasa de
-32. Si un Pokemon tiene 0 puntos en una estadistica, el numero pequeno es 0 y la
-barra aparece vacia.
+Do not confuse the two numbers: the large one is around 50-250 and the small one
+never exceeds 32. If a Pokemon has 0 points in a stat, the small number is 0 and
+the bar looks empty.
 
-QUE IGNORAR
+WHAT TO IGNORE
 
-Los iconos de tipo junto al nombre son los tipos del Pokemon y los iconos junto
-a cada movimiento son el tipo del movimiento. Son decorativos: se deducen de la
-especie y del movimiento. No los transcribas ni los uses para rellenar
-`tera_type`. El Teracristal, si existe, solo aparece en la pestana "Stats".
+The type icons beside the name are the Pokemon's types, and the icons beside each
+move are the move's type. They are decorative: both can be derived from the
+species and the move. Do not transcribe them and do not use them to fill in
+`tera_type`. The Tera type, if it exists, only appears on the "Stats" tab.
 
-REGLAS
+RULES
 
-- Identifica cada captura por la pestana resaltada, no por el orden en que te
-  llegan. Si te dan dos capturas de la misma pestana, son la misma pantalla:
-  devuelve un solo equipo de seis, no doce Pokemon.
-- Transcribe EXACTAMENTE lo que lees, caracter a caracter. No corrijas la
-  ortografia, no completes nombres ni los traduzcas.
-- Usa null en cualquier campo que no aparezca en las capturas. No lo deduzcas,
-  no lo inventes y no uses los valores "tipicos" de ese Pokemon. Sin la pestana
-  "Stats", `sp`, `stats`, `boosted_stat` y `hindered_stat` van todos a null.
-- Champions no tiene IVs ni muestra el nombre de la naturaleza: no intentes
-  rellenarlos.
-- La habilidad es la linea sin icono bajo el nombre; el objeto es la linea con
-  icono. No los intercambies.
-- `gender` es "M" para el simbolo masculino, "F" para el femenino y null si no
-  hay ninguno.
-- `nickname` solo si el mote difiere del nombre de la especie.
-- Copia el "Team ID" de la cabecera en `team_id`.
+- Identify each screenshot by its highlighted tab, not by the order they reach
+  you. If you are given two screenshots of the same tab, they are the same
+  screen: return a single team of six, not twelve Pokemon.
+- Transcribe EXACTLY what you read, character by character. Do not fix spelling,
+  do not complete names and do not translate them.
+- Use null for any field that does not appear in the screenshots. Do not infer
+  it, do not invent it and do not fall back on that Pokemon's "typical" values.
+  Without the "Stats" tab, `sp`, `stats`, `boosted_stat` and `hindered_stat` are
+  all null.
+- Champions has no IVs and never shows the nature's name: do not try to fill
+  those in.
+- The ability is the line without an icon below the name; the item is the line
+  with an icon. Do not swap them.
+- `gender` is "M" for the male symbol, "F" for the female one, and null if
+  neither is shown.
+- Set `nickname` only if the nickname differs from the species name.
+- Copy the header's "Team ID" into `team_id`.
 """
 
 
 class VisionBackend(Protocol):
-    """Convierte una o dos capturas en un equipo sin normalizar."""
+    """Turns one or two screenshots into an un-normalised team."""
 
     name: str
 
     def extract(self, images: list[tuple[str, bytes]]) -> RawTeam:
-        """`images` son pares (media_type, bytes) en orden de pantalla."""
+        """`images` are (media_type, bytes) pairs in on-screen order."""
         ...

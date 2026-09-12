@@ -1,14 +1,14 @@
-"""Motor de vision sin modelo de lenguaje: geometria fija + OCR + color.
+"""Vision engine with no language model: fixed geometry + OCR + colour.
 
-La pantalla "Replicate This Battle Team?" siempre se dibuja igual, asi que en vez
-de pedirle a un modelo que interprete la imagen, aqui se localizan las seis
-tarjetas por color, se recorta cada dato en su posicion conocida y se pasa por un
-OCR clasico. Lo que no es texto no se lee con OCR: el genero y las flechas de la
-naturaleza se deciden mirando pixeles.
+The "Replicate This Battle Team?" screen is always drawn the same way, so rather
+than asking a model to interpret the image, this locates the six cards by colour,
+crops each piece of data at its known position and runs classic OCR over it.
+Anything that is not text is not read with OCR: gender and the nature arrows are
+decided by looking at pixels.
 
-Ventaja sobre un VLM: es determinista, no puede inventarse un dato, y corre en
-una CPU modesta. Los errores que comete son de lectura, y los cazan el
-diccionario cerrado de Showdown y los dos checksums de `app/paste.py`.
+The advantage over a VLM: it is deterministic, it cannot invent a value, and it
+runs on a modest CPU. The mistakes it makes are reading mistakes, and those are
+caught by Showdown's closed vocabulary and the two checksums in `app/paste.py`.
 """
 
 from __future__ import annotations
@@ -22,12 +22,12 @@ from PIL import Image
 
 from ..schema import RawMon, RawStats, RawTeam
 
-# --- Geometria, en fracciones de la caja de cada tarjeta -------------------
-# Medidas sobre una captura real de 1998x922; al expresarlas como fracciones de
-# la tarjeta detectada, valen para cualquier resolucion.
+# --- Geometry, as fractions of each card's box -----------------------------
+# Measured on a real 1998x922 screenshot; expressed as fractions of the detected
+# card, they hold for any resolution.
 
-# Los bordes izquierdos empiezan despues del icono de objeto y del de tipo de
-# movimiento: si el icono entra en el recorte, el OCR lo lee como una letra.
+# The left edges start after the item icon and the move-type icon: if an icon
+# creeps into the crop, OCR reads it as a letter.
 SPECIES = (0.10, 0.00, 0.42, 0.30)
 ABILITY = (0.10, 0.28, 0.55, 0.48)
 ITEM    = (0.118, 0.52, 0.55, 0.73)
@@ -36,37 +36,35 @@ MOVES_X = (0.655, 0.99)
 MOVE_Y  = (0.115, 0.355, 0.590, 0.830)
 MOVE_H  = 0.085
 
-# Pestana Stats: tres filas, dos columnas. La segunda columna es la primera
-# desplazada; el desplazamiento sale de la separacion entre ambas barras.
+# Stats tab: three rows, two columns.
 STAT_ROW_Y = (0.358, 0.588, 0.818)
 STAT_ROW_H = 0.095
-COL_OFFSET = 0.4615
-# En la pestana Stats no hacen falta posiciones fijas para los numeros: cada
-# fila lleva una barra que se localiza por color y sirve de referencia. El
-# numero grande queda a su izquierda y el pequeno a su derecha, siempre a la
-# misma distancia medida en anchos de barra.
-# Medidos en anchos de barra desde su inicio: 0.0 es donde empieza la barra y
-# 1.0 donde termina, asi que el numero pequeno vive por encima de 1.0.
+
+# The numbers need no fixed positions: every row carries a bar that is located
+# by colour and serves as the reference. The large number sits to its left and
+# the small one to its right, always the same distance away measured in bar
+# widths. 0.0 is where the bar starts and 1.0 where it ends, so the small number
+# lives beyond 1.0.
 BIG_SPAN   = (-1.60, 0.0)
 SMALL_SPAN = (1.00, 2.00)
 NAME_SPAN  = (-4.9, -1.70)
 
 MAX_SP_PER_STAT = 32
 MIN_BAR_WIDTH = 12
-# Margen con el que la estimacion por longitud de barra puede desviarse del
-# valor real: medido sobre el fixture, el error maximo es de 2 puntos.
+# How far the bar-length estimate may stray from the real value: measured over
+# the fixture, the maximum error is 2 points.
 BAR_TOLERANCE = 2
 BAR_GAP = 4
-# En pantalla: columna izquierda HP/Attack/Defense, derecha Sp.Atk/Sp.Def/Speed.
+# On screen: left column HP/Attack/Defense, right column Sp.Atk/Sp.Def/Speed.
 GRID = (("hp", "sp_atk"), ("atk", "sp_def"), ("defense", "speed"))
 
-# Un digito suelto puntua alrededor de 0.5, justo en el corte por defecto de
-# RapidOCR, asi que se baja el umbral y se deja filtrar al diccionario cerrado.
+# A lone digit scores around 0.5, right at RapidOCR's default cut-off, so the
+# threshold is lowered and the closed vocabulary does the filtering instead.
 TEXT_SCORE = 0.05
 MIN_SCORE = 0.30
 UPSCALE = 5
-# El detector necesita aire por arriba y por abajo para encontrar la linea, pero
-# a los lados el margen acerca los iconos vecinos: por eso son distintos.
+# The detector needs headroom above and below to find the line, but at the sides
+# any margin drags in neighbouring icons: hence the two different values.
 PAD_X = 4
 PAD_Y = 12
 TIGHT_MARGIN = 6
@@ -77,22 +75,23 @@ def _engine():
     from rapidocr_onnxruntime import RapidOCR
 
     engine = RapidOCR()
-    # Este motor usa el detector y el reconocedor por separado para poder
-    # acotar primero y leer despues. RapidOCR 1.4 reorganizo esa API, asi que
-    # si falta alguna pieza conviene decirlo claro en vez de reventar dentro.
+    # This engine drives the detector and the recogniser separately so it can
+    # narrow down first and read afterwards. RapidOCR 1.4 reorganised that API,
+    # so if a piece is missing it is better to say so clearly than to blow up
+    # somewhere deep inside.
     missing = [name for name in ("text_detector", "text_recognizer")
                if not hasattr(engine, name)]
     if missing:
         import rapidocr_onnxruntime
-        version = getattr(rapidocr_onnxruntime, "__version__", "desconocida")
+        version = getattr(rapidocr_onnxruntime, "__version__", "unknown")
         raise RuntimeError(
-            f"rapidocr-onnxruntime {version} no expone {', '.join(missing)}. "
-            "Instala la version fijada en requirements.txt (1.2.3)."
+            f"rapidocr-onnxruntime {version} does not expose {', '.join(missing)}. "
+            "Install the version pinned in requirements.txt (1.2.3)."
         )
     return engine
 
 
-# --- Deteccion por color ---------------------------------------------------
+# --- Colour-based detection ------------------------------------------------
 
 def _card_mask(arr: np.ndarray) -> np.ndarray:
     r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
@@ -112,41 +111,41 @@ def _spans(flags: np.ndarray, min_len: int) -> list[tuple[int, int]]:
 
 
 def detect_cards(arr: np.ndarray) -> list[tuple[int, int, int, int]]:
-    """Las seis tarjetas, en el orden en que las numera el juego (1-6)."""
+    """The six cards, in the order the game numbers them (1-6)."""
     height, width, _ = arr.shape
     mask = _card_mask(arr)
 
     columns = _spans(mask.sum(axis=0) > height * 0.08, int(width * 0.08))
-    # La barra del Team ID tambien es morada pero es mucho mas baja que una
-    # tarjeta, asi que se descarta por altura.
+    # The Team ID banner is purple too, but far shorter than a card, so it is
+    # discarded by height.
     rows = [s for s in _spans(mask.sum(axis=1) > width * 0.10, int(height * 0.06))
             if s[1] - s[0] > height * 0.10]
 
     if len(columns) != 2 or len(rows) != 3:
         raise ValueError(
-            f"Esperaba una rejilla de 2x3 tarjetas y encontre {len(columns)}x{len(rows)}. "
-            "¿Es una captura de la pantalla 'Replicate This Battle Team?'"
+            f"Expected a 2x3 grid of cards and found {len(columns)}x{len(rows)}. "
+            "Is this a screenshot of the 'Replicate This Battle Team?' screen?"
         )
     return [(x0, y0, x1, y1) for y0, y1 in rows for x0, x1 in columns]
 
 
 def detect_tab(arr: np.ndarray) -> str:
-    """Devuelve 'moves' o 'stats' segun que pestana este resaltada en verde."""
+    """Return 'moves' or 'stats' depending on which tab is highlighted green."""
     height, width, _ = arr.shape
     band = arr[int(height * 0.14):int(height * 0.20)]
     r, g, b = band[:, :, 0], band[:, :, 1], band[:, :, 2]
     green = (g > 190) & (r > 140) & (r < 235) & (b < 120)
 
     if not green.any():
-        raise ValueError("No encuentro la pestana resaltada: ¿esta recortada la imagen?")
+        raise ValueError("Cannot find the highlighted tab: is the image cropped?")
     centre = np.argwhere(green)[:, 1].mean() / width
     return "moves" if centre < 0.5 else "stats"
 
 
-# --- OCR: una deteccion global y reconocimiento en lote -------------------
-# Llamar al OCR region por region cuesta ~230 ms por recorte y hay mas de cien.
-# El detector sobre la imagen completa tarda 0.6 s una sola vez, y el
-# reconocedor en lote baja a 3 ms por recorte: dos ordenes de magnitud.
+# --- OCR: one global detection pass and batched recognition ----------------
+# Calling OCR region by region costs ~230 ms per crop and there are over a
+# hundred of them. The detector over the whole image takes 0.6 s once, and the
+# recogniser in a batch drops to 3 ms per crop: two orders of magnitude.
 
 
 def _box(card, fx0, fy0, fx1, fy1,
@@ -158,7 +157,7 @@ def _box(card, fx0, fy0, fx1, fy1,
 
 
 def _detect(arr: np.ndarray) -> list[tuple[int, int, int, int]]:
-    """Cajas de texto de toda la captura, como rectangulos rectos."""
+    """Text boxes across the whole screenshot, as upright rectangles."""
     found = _engine().text_detector(np.asarray(arr, dtype=np.uint8))
     boxes = found[0] if isinstance(found, tuple) else found
     out = []
@@ -170,11 +169,11 @@ def _detect(arr: np.ndarray) -> list[tuple[int, int, int, int]]:
 
 
 def _tighten(region, detected) -> tuple[int, int, int, int]:
-    """Ajusta una region a las cajas de texto que contiene.
+    """Shrink a region down to the text boxes it contains.
 
-    El reconocedor se degrada si el recorte lleva mucho fondo vacio, asi que se
-    recorta a lo que el detector marco como texto. Si no marco nada, se devuelve
-    la region tal cual y que el reconocedor lo intente.
+    The recogniser degrades if the crop carries a lot of empty background, so it
+    is trimmed to whatever the detector marked as text. If it marked nothing, the
+    region is returned as-is and the recogniser gets to try anyway.
     """
     rx0, ry0, rx1, ry1 = region
     inside = [b for b in detected
@@ -188,7 +187,7 @@ def _tighten(region, detected) -> tuple[int, int, int, int]:
 
 
 def _recognise(image: Image.Image, boxes: list) -> list[str]:
-    """Reconoce una lista de recortes de una sola pasada."""
+    """Recognise a list of crops in a single pass."""
     crops, index = [], []
     for i, box in enumerate(boxes):
         if box is None:
@@ -217,7 +216,7 @@ def _as_int(text: str) -> int | None:
     return int(digits) if digits else None
 
 
-# --- Lectura de cada pestana ----------------------------------------------
+# --- Reading each tab ------------------------------------------------------
 
 def _gender(arr: np.ndarray, card) -> str | None:
     x0, y0, x1, y1 = _box(card, *GENDER, pad_x=0, pad_y=0)
@@ -233,10 +232,10 @@ def _gender(arr: np.ndarray, card) -> str | None:
 
 
 def _arrows(arr: np.ndarray, card, rows_bars) -> tuple[str | None, str | None]:
-    """Las flechas rosas hacia arriba y azules hacia abajo dan la naturaleza.
+    """Pink arrows pointing up and blue ones pointing down give the nature.
 
-    Se deciden contando pixeles, sin OCR: en la banda del nombre de cada
-    estadistica no hay ningun otro elemento rosa ni azul.
+    Decided by counting pixels, with no OCR: in the band holding each stat's name
+    there is no other pink or blue element.
     """
     boosted = hindered = None
     best_up = best_down = 12
@@ -249,8 +248,8 @@ def _arrows(arr: np.ndarray, card, rows_bars) -> tuple[str | None, str | None]:
             if patch.size == 0:
                 continue
             r, g, b = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
-            # La flecha "hacia arriba" no es roja pura sino rosa (~246,96,137),
-            # asi que se identifica por la distancia entre rojo y verde.
+            # The "up" arrow is not pure red but pink (~246,96,137), so it is
+            # identified by the distance between its red and green channels.
             up = int(((r > 200) & (g < 150) & (r - g > 80) & (b < 200)).sum())
             down = int(((b > 190) & (g > 140) & (g < 215) & (r < 140)).sum())
             if up > best_up:
@@ -261,12 +260,12 @@ def _arrows(arr: np.ndarray, card, rows_bars) -> tuple[str | None, str | None]:
 
 
 def _bar_spans(arr: np.ndarray, card, row: float) -> list[tuple[int, int, float]]:
-    """Las dos barras de una fila: (inicio, fin, fraccion naranja).
+    """A row's two bars: (start, end, orange fraction).
 
-    La barra es el unico elemento oscuro o naranja saturado de la fila, asi que
-    se aisla por color. Usarla como referencia evita depender de que las seis
-    tarjetas se detecten con exactamente el mismo ancho: un par de pixeles de
-    diferencia bastaban para que el recorte cortase el ultimo digito.
+    The bar is the only dark or saturated-orange element in the row, so it is
+    isolated by colour. Using it as the reference avoids depending on all six
+    cards being detected at exactly the same width: a couple of pixels of
+    difference was enough for the crop to cut off the last digit.
     """
     x0, y0, x1, y1 = _box(card, 0.0, row - STAT_ROW_H, 1.0, row + STAT_ROW_H,
                           pad_x=0, pad_y=0)
@@ -279,8 +278,8 @@ def _bar_spans(arr: np.ndarray, card, row: float) -> list[tuple[int, int, float]
     grey = (r < 115) & (g < 120) & (b < 165) & (b > r)
     bar = orange | grey
 
-    # La parte naranja y la gris pueden quedar separadas por un pixel de
-    # antialiasing; sin unirlas, una barra se leeria como dos.
+    # The orange and grey halves can end up separated by a pixel of
+    # antialiasing; without joining them, one bar would read as two.
     merged: list[list[int]] = []
     for start, end in _spans(bar.any(axis=0), 3):
         if merged and start - merged[-1][1] <= BAR_GAP:
@@ -332,8 +331,8 @@ def read_moves_tab(image: Image.Image, arr: np.ndarray, cards) -> list[RawMon]:
 
 
 def read_stats_tab(image: Image.Image, arr: np.ndarray, cards) -> list[RawMon]:
-    # La especie tambien se lee aqui: sin ella una captura suelta de Stats no
-    # daria ningun Pokemon utilizable.
+    # The species is read here too: without it, a lone Stats screenshot would
+    # yield no usable Pokemon at all.
     detected = _detect(arr)
     species = _recognise(image, [_tighten(_box(card, *SPECIES), detected)
                                  for card in cards])
@@ -366,13 +365,12 @@ def read_stats_tab(image: Image.Image, arr: np.ndarray, cards) -> list[RawMon]:
             if fill is None:
                 sp[key] = None
             else:
-                # Un cero suelto es lo que peor lee el OCR. Cuando calla, manda
-                # la barra: vacia son cero puntos, y si tiene naranja su
-                # longitud da una estimacion que el checksum de 66 contrastara.
-                # Dos medidas independientes del mismo dato: el numero leido y
-                # la longitud rellena de la barra. Si discrepan mas de lo que la
-                # barra puede errar, el OCR ha perdido o inventado un digito
-                # (un "17" leido como "7"), y manda la barra.
+                # Two independent measurements of the same value: the number that
+                # was read, and how much of the bar is filled. A lone zero is what
+                # OCR reads worst, and when it stays silent the bar decides: empty
+                # means zero points. When they disagree by more than the bar can
+                # err, OCR has dropped or invented a digit (a "17" read as "7"),
+                # and the bar wins.
                 estimate = round(fill * MAX_SP_PER_STAT)
                 value = _as_int(texts[slot + 1])
                 sp[key] = (estimate if value is None
@@ -388,7 +386,7 @@ def read_stats_tab(image: Image.Image, arr: np.ndarray, cards) -> list[RawMon]:
     return mons
 
 
-# --- Fusion de ambas pestanas ---------------------------------------------
+# --- Merging both tabs -----------------------------------------------------
 
 _STATS_FIELDS = ("sp", "stats", "boosted_stat", "hindered_stat")
 _MOVES_FIELDS = ("ability", "item", "gender", "moves")
@@ -415,8 +413,8 @@ class OcrBackend:
             tab = detect_tab(arr)
             cards = detect_cards(arr)
             reader = read_moves_tab if tab == "moves" else read_stats_tab
-            # Dos capturas de la misma pestana son la misma pantalla: la segunda
-            # no anade nada, asi que se conserva la primera.
+            # Two screenshots of the same tab are the same screen: the second
+            # adds nothing, so the first one is kept.
             by_tab.setdefault(tab, reader(image, arr, cards))
 
         if "moves" in by_tab and "stats" in by_tab:

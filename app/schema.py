@@ -1,8 +1,8 @@
-"""Forma de los datos que el motor de vision debe devolver.
+"""The shape of the data a vision engine must return.
 
-Refleja lo que hay EN PANTALLA en Pokemon Champions, no el modelo de Showdown:
-puntos SP en lugar de EVs, flechas en lugar del nombre de la naturaleza, y sin
-IVs porque el juego no los tiene. La traduccion la hace `app/champions.py`.
+It mirrors what is ON SCREEN in Pokemon Champions, not Showdown's model: SP
+instead of EVs, arrows instead of a nature name, and no IVs because the game has
+none. The translation happens in `app/champions.py`.
 """
 
 from __future__ import annotations
@@ -22,32 +22,32 @@ class RawStats(BaseModel):
 
 
 class RawMon(BaseModel):
-    species: str = Field(description="Nombre de la especie tal y como aparece en pantalla")
-    nickname: str | None = Field(default=None, description="Apodo, solo si difiere de la especie")
-    gender: str | None = Field(default=None, description="'M', 'F' o null si no se muestra")
-    item: str | None = Field(default=None, description="Objeto equipado")
-    ability: str | None = Field(default=None, description="Habilidad")
-    tera_type: str | None = Field(default=None, description="Tipo Teracristal, si el juego lo muestra")
-    moves: list[str] = Field(default_factory=list, description="Movimientos, en orden")
+    species: str = Field(description="Species name exactly as it appears on screen")
+    nickname: str | None = Field(default=None, description="Nickname, only if it differs from the species")
+    gender: str | None = Field(default=None, description="'M', 'F', or null if not shown")
+    item: str | None = Field(default=None, description="Held item")
+    ability: str | None = Field(default=None, description="Ability")
+    tera_type: str | None = Field(default=None, description="Tera type, if the game shows one")
+    moves: list[str] = Field(default_factory=list, description="Moves, in order")
 
     sp: RawStats | None = Field(
         default=None,
-        description="Puntos invertidos en cada estadistica: el numero PEQUENO de la derecha, de 0 a 32",
+        description="Points invested in each stat: the SMALL number on the right, 0 to 32",
     )
     stats: RawStats | None = Field(
         default=None,
-        description="Valor final de cada estadistica: el numero GRANDE de la izquierda",
+        description="Each stat's final value: the LARGE number on the left",
     )
     boosted_stat: str | None = Field(
         default=None,
-        description=f"Estadistica con flechas rojas hacia arriba. Uno de: {STAT_FIELDS}",
+        description=f"The stat with pink arrows pointing up. One of: {STAT_FIELDS}",
     )
     hindered_stat: str | None = Field(
         default=None,
-        description=f"Estadistica con flechas azules hacia abajo. Uno de: {STAT_FIELDS}",
+        description=f"The stat with blue arrows pointing down. One of: {STAT_FIELDS}",
     )
 
 
 class RawTeam(BaseModel):
-    pokemon: list[RawMon] = Field(description="Los Pokemon del equipo, ordenados por su numero de tarjeta")
-    team_id: str | None = Field(default=None, description="El 'Team ID' de la cabecera, si se ve")
+    pokemon: list[RawMon] = Field(description="The team's Pokemon, ordered by their card number")
+    team_id: str | None = Field(default=None, description="The header's 'Team ID', if visible")

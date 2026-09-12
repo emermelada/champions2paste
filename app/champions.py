@@ -1,16 +1,16 @@
-"""El modelo de estadisticas de Pokemon Champions y su traduccion a Showdown.
+"""Pokemon Champions' stat model and its translation to Showdown.
 
-Champions no usa EVs ni IVs al estilo clasico:
+Champions does not use classic EVs or IVs:
 
-- Cada estadistica admite de 0 a 32 **SP**, y el total del Pokemon es siempre 66.
-- No hay IVs: equivalen a 31 en todas.
-- La naturaleza no se nombra; se lee de las flechas junto a cada estadistica
-  (rojas hacia arriba = potenciada, azules hacia abajo = reducida).
-- Los combates son a nivel 50.
+- Each stat takes 0 to 32 **SP**, and a Pokemon's total is always 66.
+- There are no IVs: they are equivalent to 31 across the board.
+- The nature is never named; it is read from the arrows beside each stat
+  (pink pointing up = boosted, blue pointing down = hindered).
+- Battles are at level 50.
 
-La equivalencia con Showdown (1 SP = 8 EVs, tope de 252) esta verificada contra
-las seis tarjetas de `tests/fixtures/`: los 36 valores mostrados en pantalla se
-reproducen exactamente con esta formula.
+The equivalence with Showdown (1 SP = 8 EVs, capped at 252) is verified against
+the six cards in `tests/fixtures/`: all 36 on-screen values are reproduced
+exactly by this formula.
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ MAX_SP_PER_STAT = 32
 MAX_SP_TOTAL = 66
 EV_PER_SP = 8
 MAX_EV_PER_STAT = 252
-MAX_EV_TOTAL = 508      # el tope del sistema clasico de EVs
+MAX_EV_TOTAL = 508      # the cap of the classic EV system
 
-# Filas: estadistica potenciada. Columnas: estadistica reducida.
+# Rows: boosted stat. Columns: hindered stat.
 _NATURE_STATS = ["atk", "defense", "sp_atk", "sp_def", "speed"]
 _NATURE_GRID = [
     ["Hardy",  "Lonely",  "Adamant", "Naughty", "Brave"],
@@ -38,10 +38,10 @@ _NATURE_GRID = [
 
 
 def nature_from_arrows(boosted: str | None, hindered: str | None) -> str | None:
-    """Traduce las flechas de la pestana Stats al nombre de la naturaleza.
+    """Turn the Stats tab arrows into a nature name.
 
-    Sin flechas la naturaleza es neutra: Showdown ya asume neutra cuando el paste
-    no lleva linea de naturaleza, asi que devolvemos None y se omite.
+    With no arrows the nature is neutral, and Showdown already assumes neutral
+    when a paste carries no nature line, so we return None and omit it.
     """
     if boosted not in _NATURE_STATS or hindered not in _NATURE_STATS:
         return None
@@ -50,27 +50,26 @@ def nature_from_arrows(boosted: str | None, hindered: str | None) -> str | None:
 
 
 def sp_to_evs(sp: dict[str, int]) -> dict[str, int]:
-    """Traduce SP a la escala clasica de EVs (1 SP = 8 EVs, tope 252).
+    """Translate SP into the classic EV scale (1 SP = 8 EVs, capped at 252).
 
-    Se usa siempre para recalcular las estadisticas, porque la formula del juego
-    opera en esa escala. Para el paste solo se emplea en modo `legacy`.
+    Always used to recompute stats, because the game's formula operates on that
+    scale. For the paste itself it is only used in `legacy` mode.
     """
     return {key: min(value * EV_PER_SP, MAX_EV_PER_STAT) for key, value in sp.items()}
 
 
 def paste_evs(sp: dict[str, int], legacy: bool = False) -> dict[str, int]:
-    """Los valores que van en la linea EVs del paste.
+    """The values that go on the paste's EVs line.
 
-    Los formatos de Champions en Showdown usan la propia escala del juego: hasta
-    32 por estadistica y 66 en total. Por eso lo normal es emitir los SP tal
-    cual. `legacy` produce la escala antigua de EVs para calculadoras y formatos
-    que todavia esperan 0-252.
+    Champions formats on Showdown use the game's own scale: up to 32 per stat and
+    66 in total, so emitting the SP as-is is the normal case. `legacy` produces
+    the old EV scale for calculators and formats that still expect 0-252.
     """
     return sp_to_evs(sp) if legacy else dict(sp)
 
 
 def stat_value(base: int, ev: int, key: str, nature_mult: float) -> int:
-    """Valor final de una estadistica a nivel 50 con IVs perfectos."""
+    """A stat's final value at level 50 with perfect IVs."""
     core = (2 * base + 31 + ev // 4) * LEVEL // 100
     if key == "hp":
         return core + LEVEL + 10
@@ -79,7 +78,7 @@ def stat_value(base: int, ev: int, key: str, nature_mult: float) -> int:
 
 def expected_stats(species: str, evs: dict[str, int],
                    boosted: str | None, hindered: str | None) -> dict[str, int] | None:
-    """Recalcula las seis estadisticas, o None si no conocemos la especie."""
+    """Recompute all six stats, or None if the species is unknown."""
     base = dex.BASE_STATS.get(species)
     if base is None:
         return None

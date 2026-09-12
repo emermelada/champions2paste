@@ -2,8 +2,8 @@
 __pycache__/
 *.pyc
 
-# Se genera en el build desde play.pokemonshowdown.com
+# Generated during the build from play.pokemonshowdown.com
 data/dex.json
 
-# Credenciales reales; .env.example si se versiona
+# Real credentials; .env.example is the one that is versioned
 .env
