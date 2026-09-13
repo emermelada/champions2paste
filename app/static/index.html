@@ -123,6 +123,7 @@
         it has highlighted. Upload just one, both, or put them the wrong way round.</p>
       <div class="actions">
         <button id="go" disabled>Convert</button>
+        <button id="pasteBtn" class="ghost" type="button" hidden>Paste screenshot</button>
         <label>Level <input type="number" id="level" value="50" min="1" max="100"></label>
         <label title="Champions uses 32 per stat and 66 in total, which is what its Showdown formats expect. The classic scale multiplies by 8 for older calculators.">
           <input type="checkbox" id="legacy" style="width:auto"> Classic EVs (×8)</label>
@@ -288,18 +289,56 @@ function flash(i) {
   zone.classList.add("pasted");
 }
 
-document.addEventListener("paste", e => {
-  const images = imagesFromClipboard(e.clipboardData);
-  if (!images.length) return;
-  e.preventDefault();
-
+function placeImages(images) {
   const used = [];
   for (const file of images.slice(0, 2)) {
     const i = targetSlot();
     if (setFile(i, file)) { used.push(i + 1); flash(i); }
   }
   if (used.length) setStatus(`Image pasted into slot ${used.join(" and ")}.`);
+}
+
+document.addEventListener("paste", e => {
+  const images = imagesFromClipboard(e.clipboardData);
+  if (!images.length) return;
+  e.preventDefault();
+  placeImages(images);
 });
+
+// Safari only fires "paste" while an editable field has focus, and an iPhone has
+// no Ctrl+V at all, so the event above never reaches Apple users. The async
+// Clipboard API works there instead, as long as it runs inside a click.
+async function imagesFromClipboardItems(items) {
+  const images = [];
+  for (const item of items) {
+    const type = item.types.find(t => t.startsWith("image/"));
+    if (!type) continue;
+    const blob = await item.getType(type);
+    images.push(new File([blob], `pasted.${type.split("/")[1]}`, { type }));
+  }
+  return images;
+}
+
+if (navigator.clipboard && navigator.clipboard.read) {
+  $("pasteBtn").hidden = false;
+  $("pasteBtn").addEventListener("click", async () => {
+    // Nothing may be awaited before read(): Safari only grants access while the
+    // click is still the current user gesture.
+    let items;
+    try {
+      items = await navigator.clipboard.read();
+    } catch {
+      setStatus("Clipboard access was refused. Tap a slot to pick the screenshot instead.", true);
+      return;
+    }
+    const images = await imagesFromClipboardItems(items);
+    if (!images.length) {
+      setStatus("The clipboard holds no image. Copy a screenshot first.", true);
+      return;
+    }
+    placeImages(images);
+  });
+}
 
 /* ---------- extraction ---------- */
 $("go").addEventListener("click", async () => {
@@ -503,8 +542,13 @@ $("copy").addEventListener("click", async () => {
 $("download").addEventListener("click", () => {
   const url = URL.createObjectURL(new Blob([pasteText], { type: "text/plain" }));
   const a = document.createElement("a");
-  a.href = url; a.download = "team.txt"; a.click();
-  URL.revokeObjectURL(url);
+  a.href = url; a.download = "team.txt";
+  // Safari starts the download asynchronously, so revoking the URL right after
+  // click() cancels it. The link is also attached, the form every browser honours.
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 });
 </script>
 </body>
